@@ -286,7 +286,6 @@ async function loadDashboard() {
       await db
         .from("products")
         .select("*")
-        .eq("active", true)
         .order("code");
 
     if (prodError) throw prodError;
