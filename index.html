@@ -293,7 +293,10 @@ async function loadDashboard() {
     locations = locs || [];
     products = prods || [];
 
-    renderDashboard();
+    console.log("ARMAZÉNS:", locations);
+    console.log("ARTIGOS:", products);
+
+renderDashboard();
 
   } catch (error) {
 
