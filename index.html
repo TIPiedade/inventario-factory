@@ -31,7 +31,7 @@ const SUPABASE_URL="https://cngnoirjlpfpipbmlens.supabase.co";
 const SUPABASE_KEY="sb_publishable_qO1UjfG_RDNFTz2G6LM9rA_qpk6zHVx";
 const db=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
 
-let locations=[],products=[],inventories=[],currentInventory=null,currentLocation=null,lastCounts={},currentCounts={},reportRows=[];
+let locations=[],products=[],inventories=[],currentInventory=null,currentLocation=null,lastCounts={},currentCounts={},reportRows=[];\nlet currentOperator=localStorage.getItem("inventory_operator")||"";
 
 const app=document.getElementById("app");
 const esc=v=>String(v??"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;").replaceAll("'","&#039;");
@@ -59,9 +59,9 @@ async function loadDashboard(){
 
 function renderDashboard(){
  const inv=inventories[0];
- app.innerHTML=nav()+'<div class="topbar"><div><h2>Inventário atual</h2><small>'+products.length+' artigos · '+locations.length+' armazéns</small></div><span class="status">'+(inv?"Inventário de "+d(inv.created_at):"Sem inventário")+'</span></div>'+
+ app.innerHTML=nav()+'<div class="topbar"><div><h2>Inventário atual</h2><small>'+products.length+' artigos · '+locations.length+' armazéns</small></div><div class="actions"><label class="muted">Operador: <select id="operatorSelect" style="padding:9px;border:1px solid #ccd2d8;border-radius:8px"><option value="">Selecionar</option>'+["Beatriz","Inês","Rui","Milene"].map(n=>'<option '+(currentOperator===n?'selected':'')+'>'+n+'</option>').join("")+'</select></label><span class="status">'+(inv?"Inventário de "+d(inv.created_at):"Sem inventário")+'</span></div></div>'+
  '<div class="kpis"><div class="kpi">Artigos<b>'+products.length+'</b></div><div class="kpi">Armazéns<b>'+locations.length+'</b></div><div class="kpi">Inventários<b>'+inventories.length+'</b></div></div>'+
- '<div class="cards">'+locations.map(l=>'<div class="card loc-card" data-loc="'+esc(l.id)+'"><h3>'+esc(l.name)+'</h3><p>'+products.length+' artigos</p><div class="progress"><div id="bar-'+esc(l.id)+'" style="width:0%"></div></div><p><b id="count-'+esc(l.id)+'">0</b> contados</p></div>').join("")+'</div>';
+ '<div class="cards">'+locations.map(l=>'<div class="card loc-card" data-loc="'+esc(l.id)+'"><h3>'+esc(l.name)+'</h3><p>'+products.length+' artigos</p><p class="muted">'+(inv?.status?esc(inv.status):"aberto")+'</p><div class="progress"><div id="bar-'+esc(l.id)+'" style="width:0%"></div></div><p><b id="count-'+esc(l.id)+'">0</b> contados</p></div>').join("")+'</div>';
  bindNav();
  document.querySelectorAll(".loc-card").forEach(x=>x.addEventListener("click",()=>openLocation(x.dataset.loc,inv?.id)));
  if(inv)loadProgress(inv.id);
@@ -74,7 +74,7 @@ async function loadProgress(invId){
 }
 
 async function openLocation(locId,invId){
- currentLocation=locations.find(x=>String(x.id)===String(locId));currentInventory=inventories.find(x=>String(x.id)===String(invId));
+ currentLocation=locations.find(x=>String(x.id)===String(locId));currentInventory=inventories.find(x=>String(x.id)===String(invId)); if(!currentOperator){alert("Seleciona primeiro quem está a fazer a contagem.");return;}
  if(!currentLocation||!currentInventory){alert("Armazém ou inventário não encontrado.");return}
  loading("A carregar "+currentLocation.name+"...");
  try{await loadCounts();renderLocation()}catch(e){showError(e)}
@@ -89,8 +89,8 @@ async function loadCounts(){
 }
 
 function renderLocation(){
- app.innerHTML=nav()+'<div class="topbar"><div><button id="back" class="secondary">← Armazéns</button><h2>'+esc(currentLocation.name)+'</h2><small>Inventário de '+d(currentInventory.created_at)+'</small></div><button id="save" class="success">Guardar contagem</button></div><div class="panel"><input id="search" class="search" placeholder="Pesquisar por código ou artigo..."><div id="ptable"></div></div>';
- bindNav();document.getElementById("back").addEventListener("click",loadDashboard);document.getElementById("save").addEventListener("click",saveCounts);document.getElementById("search").addEventListener("input",filterProducts);renderProducts(products)
+ app.innerHTML=nav()+'<div class="topbar"><div><button id="back" class="secondary">← Armazéns</button><h2>'+esc(currentLocation.name)+'</h2><small>Inventário de '+d(currentInventory.created_at)+'</small></div><div class="actions"><button id="save" class="success">Guardar contagem</button><button id="closeInv" class="secondary">🔒 Fechar inventário</button></div></div><div class="panel"><input id="search" class="search" placeholder="Pesquisar por código ou artigo..."><div id="ptable"></div></div>';
+ bindNav();document.getElementById("back").addEventListener("click",loadDashboard);document.getElementById("save").addEventListener("click",saveCounts);document.getElementById("closeInv").addEventListener("click",closeInventory);document.getElementById("search").addEventListener("input",filterProducts);renderProducts(products)
 }
 
 function renderProducts(list){
@@ -100,14 +100,28 @@ function renderProducts(list){
 function filterProducts(){let s=document.getElementById("search").value.toLowerCase().trim();renderProducts(products.filter(p=>String(p.code).toLowerCase().includes(s)||String(p.description).toLowerCase().includes(s)))}
 
 async function saveCounts(){
+ if(currentInventory.status==="fechado"){alert("Este inventário está fechado e não pode ser alterado.");return;}
  const entries=Object.entries(currentCounts);if(!entries.length)return alert("Não introduziste nenhuma contagem.");
  if(!confirm("Guardar "+entries.length+" contagens no "+currentLocation.name+"?"))return;
- try{const rows=entries.map(([code,q])=>({inventory_id:currentInventory.id,location_id:currentLocation.id,product_code:Number(code),quantity:Number(q),counted_at:new Date().toISOString()}));const r=await db.from("counts").upsert(rows,{onConflict:"inventory_id,location_id,product_code"});if(r.error)throw r.error;alert("Contagem guardada com sucesso.");await loadBase();openLocation(currentLocation.id,currentInventory.id)}catch(e){alert("Erro ao guardar: "+e.message)}
+ try{const rows=entries.map(([code,q])=>({inventory_id:currentInventory.id,location_id:currentLocation.id,product_code:Number(code),quantity:Number(q),counted_at:new Date().toISOString(),counted_by:currentOperator}));const r=await db.from("counts").upsert(rows,{onConflict:"inventory_id,location_id,product_code"});if(r.error)throw r.error;alert("Contagem guardada com sucesso.");await loadBase();openLocation(currentLocation.id,currentInventory.id)}catch(e){alert("Erro ao guardar: "+e.message)}
+}
+
+
+async function closeInventory(){
+ if(!currentInventory)return;
+ if(currentInventory.status==="fechado"){alert("Este inventário já está fechado.");return;}
+ if(!confirm("Fechar este inventário? Depois de fechado, as contagens deixam de poder ser alteradas."))return;
+ try{
+  const r=await db.from("inventories").update({status:"fechado"}).eq("id",currentInventory.id);
+  if(r.error)throw r.error;
+  alert("Inventário fechado.");
+  await loadBase(); currentInventory=inventories.find(x=>String(x.id)===String(currentInventory.id)); renderLocation();
+ }catch(e){alert("Não foi possível fechar: "+e.message)}
 }
 
 async function showHistory(){
  loading("A carregar histórico...");
- try{await loadBase();app.innerHTML=nav()+'<div class="topbar"><div><h2>Histórico de inventários</h2><small>'+inventories.length+' inventário(s)</small></div></div><div class="panel">'+(inventories.length?inventories.map(i=>'<div class="history"><div><b>Inventário de '+d(i.created_at)+'</b><div class="muted">Criado em '+dt(i.created_at)+'</div></div><div class="actions"><button class="primary view-inv" data-id="'+esc(i.id)+'">Consultar / Editar</button><button class="success export-inv" data-id="'+esc(i.id)+'">Excel</button></div></div>').join(""):'<div class="empty">Não existem inventários.</div>')+'</div>';bindNav();
+ try{await loadBase();app.innerHTML=nav()+'<div class="topbar"><div><h2>Histórico de inventários</h2><small>'+inventories.length+' inventário(s)</small></div></div><div class="panel">'+(inventories.length?inventories.map(i=>'<div class="history"><div><b>Inventário de '+d(i.created_at)+'</b><div class="muted">'+(i.status?('Estado: '+esc(i.status)+' · '):'')+'Criado em '+dt(i.created_at)+'</div></div><div class="actions"><button class="primary view-inv" data-id="'+esc(i.id)+'">Consultar / Editar</button><button class="success export-inv" data-id="'+esc(i.id)+'">Excel</button></div></div>').join(""):'<div class="empty">Não existem inventários.</div>')+'</div>';bindNav();
  document.querySelectorAll(".view-inv").forEach(b=>b.addEventListener("click",()=>viewInventory(b.dataset.id)));
  document.querySelectorAll(".export-inv").forEach(b=>b.addEventListener("click",()=>exportInventory(b.dataset.id)))
  }catch(e){showError(e)}
