@@ -39,8 +39,8 @@ const fmt=n=>Number(n||0).toLocaleString("pt-PT",{maximumFractionDigits:3});
 const d=v=>new Date(v).toLocaleDateString("pt-PT");
 const dt=v=>new Date(v).toLocaleString("pt-PT",{dateStyle:"short",timeStyle:"short"});
 
-function nav(){return '<div class="nav"><button id="dashboard" class="secondary">🏠 Dashboard</button><button id="history" class="secondary">🕘 Histórico</button><button id="stock" class="secondary">📊 Stock</button></div>'}
-function bindNav(){document.getElementById("dashboard")?.addEventListener("click",loadDashboard);document.getElementById("history")?.addEventListener("click",showHistory);document.getElementById("stock")?.addEventListener("click",showStock)}
+function nav(){return '<div class="nav"><button id="dashboard" class="secondary">🏠 Dashboard</button><button id="history" class="secondary">🕘 Histórico</button><button id="stock" class="secondary">📊 Stock</button><button id="compare" class="secondary">↔ Comparar</button></div>'}
+function bindNav(){document.getElementById("dashboard")?.addEventListener("click",loadDashboard);document.getElementById("history")?.addEventListener("click",showHistory);document.getElementById("stock")?.addEventListener("click",showStock);document.getElementById("compare")?.addEventListener("click",showCompare)}
 function loading(t){app.innerHTML='<div class="panel empty">'+esc(t)+'</div>'}
 function showError(e){app.innerHTML=nav()+'<div class="error"><b>Erro:</b><br>'+esc(e?.message||e)+'</div>';bindNav()}
 
@@ -141,6 +141,93 @@ async function exportInventory(id){
   if(window.XLSX){const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(resumo),"Resumo");XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(rows),"Contagens");XLSX.writeFile(wb,"Inventario_"+d(inv.created_at).replaceAll("/","-")+".xlsx")}
   else{csvDownload(resumo,"Inventario_"+d(inv.created_at).replaceAll("/","-")+".csv");alert("O Excel não carregou. Foi descarregado um CSV que abre diretamente no Excel.")}
  }catch(e){alert("Erro ao exportar: "+e.message)}
+}
+
+
+async function getComparisonRows(oldId,newId){
+ const [oldRows,newRows]=await Promise.all([getRows(oldId),getRows(newId)]);
+ const makeMap=rows=>{const m={};rows.forEach(r=>{const k=String(r.Codigo)+"|"+r.Armazem;m[k]=r});return m};
+ const a=makeMap(oldRows),b=makeMap(newRows),keys=new Set([...Object.keys(a),...Object.keys(b)]);
+ const out=[];
+ keys.forEach(k=>{
+  const x=a[k]||{},y=b[k]||{};
+  const oldQ=Number(x.Quantidade||0),newQ=Number(y.Quantidade||0),diff=newQ-oldQ;
+  const pct=oldQ!==0?(diff/oldQ)*100:null;
+  out.push({Codigo:y.Codigo??x.Codigo,Artigo:y.Artigo||x.Artigo,Armazem:y.Armazem||x.Armazem,Anterior:oldQ,Atual:newQ,Diferenca:diff,VariacaoPct:pct});
+ });
+ return out.sort((x,y)=>String(x.Codigo).localeCompare(String(y.Codigo),undefined,{numeric:true})||String(x.Armazem).localeCompare(String(y.Armazem)));
+}
+
+async function showCompare(){
+ loading("A carregar comparação...");
+ try{
+  await loadBase();
+  if(inventories.length<2){
+   app.innerHTML=nav()+'<div class="panel empty"><h3>Ainda não existem dois inventários</h3><p>Para comparar meses precisas de ter pelo menos dois inventários gravados.</p></div>';
+   bindNav();return;
+  }
+  app.innerHTML=nav()+`
+  <div class="topbar"><div><h2>Comparar inventários</h2><small>Compara stock por artigo e armazém</small></div></div>
+  <div class="panel">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:15px">
+      <div><label><b>Inventário anterior</b></label><select id="oldInv" style="width:100%;padding:12px;margin-top:8px;border:1px solid #ccd2d8;border-radius:8px">${inventories.map((i,n)=>'<option value="'+esc(i.id)+'" '+(n===1?'selected':'')+'>Inventário de '+d(i.created_at)+'</option>').join("")}</select></div>
+      <div><label><b>Inventário atual</b></label><select id="newInv" style="width:100%;padding:12px;margin-top:8px;border:1px solid #ccd2d8;border-radius:8px">${inventories.map((i,n)=>'<option value="'+esc(i.id)+'" '+(n===0?'selected':'')+'>Inventário de '+d(i.created_at)+'</option>').join("")}</select></div>
+    </div>
+    <button id="runCompare" class="primary" style="margin-top:18px">Comparar</button>
+  </div>
+  <div id="compareResult"></div>`;
+  bindNav();document.getElementById("runCompare").addEventListener("click",runComparison);
+  await runComparison();
+ }catch(e){showError(e)}
+}
+
+async function runComparison(){
+ const oldId=document.getElementById("oldInv").value,newId=document.getElementById("newInv").value;
+ if(oldId===newId){document.getElementById("compareResult").innerHTML='<div class="error">Escolhe dois inventários diferentes.</div>';return}
+ const box=document.getElementById("compareResult");box.innerHTML='<div class="panel empty">A calcular diferenças...</div>';
+ try{
+  const rows=await getComparisonRows(oldId,newId);
+  const inc=rows.filter(r=>r.Diferenca>0).length,dec=rows.filter(r=>r.Diferenca<0).length,same=rows.filter(r=>r.Diferenca===0).length;
+  window._comparisonRows=rows;
+  box.innerHTML=`
+   <div class="kpis">
+    <div class="kpi">Linhas comparadas<b>${rows.length}</b></div>
+    <div class="kpi">Aumentos<b>${inc}</b></div>
+    <div class="kpi">Reduções<b>${dec}</b></div>
+    <div class="kpi">Sem alteração<b>${same}</b></div>
+   </div>
+   <div class="panel">
+    <div class="topbar"><h3 style="margin:0">Diferenças</h3><button id="exportCompare" class="success">📊 Exportar comparação</button></div>
+    <input id="compareSearch" class="search" placeholder="Pesquisar código, artigo ou armazém...">
+    <div id="compareTable"></div>
+   </div>`;
+  document.getElementById("exportCompare").addEventListener("click",()=>exportComparison(rows));
+  document.getElementById("compareSearch").addEventListener("input",()=>filterComparison(rows));
+  renderComparisonTable(rows);
+ }catch(e){box.innerHTML='<div class="error">'+esc(e.message)+'</div>'}
+}
+
+function renderComparisonTable(rows){
+ document.getElementById("compareTable").innerHTML=`<table><thead><tr><th>Código</th><th>Artigo</th><th>Armazém</th><th>Anterior</th><th>Atual</th><th>Diferença</th><th>Variação</th></tr></thead><tbody>${
+ rows.map(r=>'<tr><td><b>'+esc(r.Codigo)+'</b></td><td>'+esc(r.Artigo)+'</td><td>'+esc(r.Armazem)+'</td><td>'+fmt(r.Anterior)+'</td><td>'+fmt(r.Atual)+'</td><td><b>'+((r.Diferenca>0?"+":"")+fmt(r.Diferenca))+'</b></td><td>'+ (r.VariacaoPct===null?'—':r.VariacaoPct.toLocaleString("pt-PT",{maximumFractionDigits:1})+"%")+'</td></tr>').join("")
+ }</tbody></table>`;
+}
+
+function filterComparison(rows){
+ const q=document.getElementById("compareSearch").value.toLowerCase().trim();
+ renderComparisonTable(rows.filter(r=>[r.Codigo,r.Artigo,r.Armazem].some(v=>String(v).toLowerCase().includes(q))));
+}
+
+function exportComparison(rows){
+ if(!rows.length){alert("Não existem dados para exportar.");return}
+ if(window.XLSX){
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(rows.map(r=>({...r,VariacaoPct:r.VariacaoPct===null?"":r.VariacaoPct}))),"Comparação");
+  XLSX.writeFile(wb,"Comparacao_Inventarios.xlsx");
+ }else{
+  csvDownload(rows,"Comparacao_Inventarios.csv");
+  alert("O Excel não carregou. Foi descarregado um CSV compatível com Excel.");
+ }
 }
 
 async function showStock(){
