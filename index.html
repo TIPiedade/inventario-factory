@@ -7,26 +7,20 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 <style>
-*{box-sizing:border-box}body{margin:0;font-family:Arial,Helvetica,sans-serif;background:#f4f6f8;color:#17202a}
-header{background:#fff;border-bottom:1px solid #ddd;padding:18px 24px;position:sticky;top:0;z-index:10}
-header h1{margin:0;font-size:24px}header small{color:#6b7280}.container{max-width:1250px;margin:auto;padding:24px}
-.topbar{display:flex;justify-content:space-between;align-items:center;gap:15px;margin-bottom:24px;flex-wrap:wrap}
-.nav{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px}button{border:0;border-radius:8px;padding:11px 16px;cursor:pointer;font-weight:600}
-.btn-primary{background:#1f6feb;color:white}.btn-secondary{background:#e9edf2;color:#17202a}.btn-success{background:#198754;color:white}
-.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:16px}
-.card{background:#fff;border:1px solid #e1e5e9;border-radius:12px;padding:20px;cursor:pointer;transition:.15s}
-.card:hover{transform:translateY(-2px);box-shadow:0 5px 18px rgba(0,0,0,.08)}.card h3{margin:0 0 8px}.card p{margin:4px 0;color:#667085}
-.progress{height:8px;background:#e9ecef;border-radius:10px;overflow:hidden;margin-top:14px}.progress div{height:100%;background:#198754}
-.panel{background:#fff;border-radius:12px;border:1px solid #e1e5e9;padding:20px;margin-bottom:18px}
+*{box-sizing:border-box}body{margin:0;font-family:Arial,sans-serif;background:#f4f6f8;color:#17202a}
+header{background:#fff;border-bottom:1px solid #ddd;padding:18px 24px;position:sticky;top:0;z-index:5}header h1{margin:0;font-size:24px}header small{color:#667085}
+.container{max-width:1250px;margin:auto;padding:24px}.nav{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px}
+button{border:0;border-radius:8px;padding:11px 16px;cursor:pointer;font-weight:600}.primary{background:#1f6feb;color:#fff}.success{background:#198754;color:#fff}.secondary{background:#e9edf2;color:#17202a}
+.topbar{display:flex;justify-content:space-between;align-items:center;gap:15px;flex-wrap:wrap;margin-bottom:20px}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:16px}.card,.panel,.kpi{background:#fff;border:1px solid #e1e5e9;border-radius:12px;padding:20px}.card{cursor:pointer}.card:hover{box-shadow:0 5px 18px rgba(0,0,0,.08)}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:18px}.kpi b{display:block;font-size:28px;margin-top:5px}
+.progress{height:8px;background:#e9ecef;border-radius:10px;overflow:hidden;margin:14px 0}.progress div{height:100%;background:#198754}
 .search{width:100%;padding:14px;border:1px solid #ccd2d8;border-radius:8px;font-size:16px;margin:15px 0}
-table{width:100%;border-collapse:collapse}th{background:#f1f3f5;text-align:left;padding:12px;font-size:13px}
-td{padding:10px 12px;border-top:1px solid #eee}.quantity{width:110px;padding:11px;border:1px solid #bbb;border-radius:7px;font-size:18px;text-align:right}
-.last-count{font-weight:bold;color:#495057}.empty{text-align:center;padding:40px;color:#777}.status{padding:8px 12px;border-radius:20px;font-size:13px;background:#e9f7ef;color:#198754}
-.error{background:#fff0f0;color:#b42318;padding:15px;border-radius:8px;margin-bottom:15px}.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:18px}
-.kpi{background:#fff;border:1px solid #e1e5e9;border-radius:12px;padding:18px}.kpi b{font-size:28px;display:block;margin-top:5px}
-.history-item{display:flex;justify-content:space-between;align-items:center;gap:15px;padding:16px;border-top:1px solid #eee}.history-item:first-child{border-top:0}
-.actions{display:flex;gap:8px;flex-wrap:wrap}.muted{color:#667085}
-@media(max-width:700px){.container{padding:12px}table{font-size:13px}th:nth-child(2),td:nth-child(2){display:none}.quantity{width:90px}.history-item{align-items:flex-start;flex-direction:column}}
+table{width:100%;border-collapse:collapse}th{background:#f1f3f5;text-align:left;padding:12px;font-size:13px}td{padding:10px 12px;border-top:1px solid #eee}
+.quantity{width:110px;padding:11px;border:1px solid #bbb;border-radius:7px;font-size:18px;text-align:right}.muted{color:#667085}.empty{text-align:center;padding:40px;color:#777}
+.status{padding:8px 12px;border-radius:20px;background:#e9f7ef;color:#198754;font-size:13px}.error{background:#fff0f0;color:#b42318;padding:15px;border-radius:8px;margin-bottom:15px}
+.history{display:flex;justify-content:space-between;align-items:center;gap:15px;padding:16px;border-top:1px solid #eee}.history:first-child{border-top:0}.actions{display:flex;gap:8px;flex-wrap:wrap}
+@media(max-width:700px){.container{padding:12px}.history{flex-direction:column;align-items:flex-start}th:nth-child(2),td:nth-child(2){display:none}}
 </style>
 </head>
 <body>
@@ -37,130 +31,126 @@ const SUPABASE_URL="https://cngnoirjlpfpipbmlens.supabase.co";
 const SUPABASE_KEY="sb_publishable_qO1UjfG_RDNFTz2G6LM9rA_qpk6zHVx";
 const db=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
 
-let locations=[],products=[],inventories=[],currentLocation=null,currentInventory=null,lastCounts={},currentCounts={};
+let locations=[],products=[],inventories=[],currentInventory=null,currentLocation=null,lastCounts={},currentCounts={},reportRows=[];
 
+const app=document.getElementById("app");
 const esc=v=>String(v??"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;").replaceAll("'","&#039;");
-const num=n=>Number(n).toLocaleString("pt-PT",{maximumFractionDigits:3});
-const date=v=>new Date(v).toLocaleDateString("pt-PT");
-const datetime=v=>new Date(v).toLocaleString("pt-PT",{dateStyle:"short",timeStyle:"short"});
-const invName=i=>"Inventário de "+date(i.created_at);
+const fmt=n=>Number(n||0).toLocaleString("pt-PT",{maximumFractionDigits:3});
+const d=v=>new Date(v).toLocaleDateString("pt-PT");
+const dt=v=>new Date(v).toLocaleString("pt-PT",{dateStyle:"short",timeStyle:"short"});
 
-function loading(t="A carregar..."){app.innerHTML=`<div class="panel empty">${t}</div>`}
-function error(m){app.innerHTML=`<div class="error"><b>Erro</b><br><br>${m}</div><button class="btn-secondary" onclick="loadDashboard()">Tentar novamente</button>`}
-function nav(){return `<div class="nav"><button class="btn-secondary" onclick="renderDashboard()">🏠 Dashboard</button><button class="btn-secondary" onclick="renderHistory()">🕘 Histórico</button><button class="btn-secondary" onclick="renderReport()">📊 Stock</button></div>`}
+function nav(){return '<div class="nav"><button id="dashboard" class="secondary">🏠 Dashboard</button><button id="history" class="secondary">🕘 Histórico</button><button id="stock" class="secondary">📊 Stock</button></div>'}
+function bindNav(){document.getElementById("dashboard")?.addEventListener("click",loadDashboard);document.getElementById("history")?.addEventListener("click",showHistory);document.getElementById("stock")?.addEventListener("click",showStock)}
+function loading(t){app.innerHTML='<div class="panel empty">'+esc(t)+'</div>'}
+function showError(e){app.innerHTML=nav()+'<div class="error"><b>Erro:</b><br>'+esc(e?.message||e)+'</div>';bindNav()}
 
 async function loadBase(){
- const [l,p,i]=await Promise.all([
-  db.from("locations").select("*").order("name"),
-  db.from("products").select("*").eq("active",true).order("code"),
-  db.from("inventories").select("*").order("created_at",{ascending:false})
- ]);
+ const l=await db.from("locations").select("*").order("name");
+ const p=await db.from("products").select("*").order("code");
+ const i=await db.from("inventories").select("*").order("created_at",{ascending:false});
  if(l.error)throw l.error;if(p.error)throw p.error;if(i.error)throw i.error;
  locations=l.data||[];products=p.data||[];inventories=i.data||[];
 }
-async function loadDashboard(){loading("A carregar inventário...");try{await loadBase();renderDashboard()}catch(e){console.error(e);error(e.message)}}
+
+async function loadDashboard(){
+ loading("A carregar inventário...");
+ try{await loadBase();renderDashboard()}catch(e){showError(e)}
+}
 
 function renderDashboard(){
- const latest=inventories[0];
- app.innerHTML=nav()+`
- <div class="topbar"><div><h2>Inventário atual</h2><small>${products.length} artigos · ${locations.length} armazéns</small></div>
- <span class="status">${latest?invName(latest):"Sem inventário"}</span></div>
- <div class="kpis"><div class="kpi">Artigos<b>${products.length}</b></div><div class="kpi">Armazéns<b>${locations.length}</b></div><div class="kpi">Inventários<b>${inventories.length}</b></div></div>
- <div class="cards">${locations.map(l=>`<div class="card" onclick="openLocation(${JSON.stringify(String(l.id))},${latest?JSON.stringify(String(latest.id)):"null"})"><h3>${esc(l.name)}</h3><p>${products.length} artigos</p><div class="progress"><div id="p${l.id}" style="width:0%"></div></div><p><b id="c${l.id}">0</b> contados</p></div>`).join("")}</div>`;
- if(latest)progress(latest.id);
-}
-async function progress(id){
- try{
-  const q=await db.from("counts").select("location_id,product_code").eq("inventory_id",id);if(q.error)throw q.error;
-  const by={};(q.data||[]).forEach(r=>{(by[r.location_id]??=new Set()).add(r.product_code)});
-  locations.forEach(l=>{let n=by[l.id]?.size||0,p=products.length?Math.round(n/products.length*100):0;document.getElementById("c"+l.id).textContent=n;document.getElementById("p"+l.id).style.width=p+"%"});
- }catch(e){console.error(e)}
+ const inv=inventories[0];
+ app.innerHTML=nav()+'<div class="topbar"><div><h2>Inventário atual</h2><small>'+products.length+' artigos · '+locations.length+' armazéns</small></div><span class="status">'+(inv?"Inventário de "+d(inv.created_at):"Sem inventário")+'</span></div>'+
+ '<div class="kpis"><div class="kpi">Artigos<b>'+products.length+'</b></div><div class="kpi">Armazéns<b>'+locations.length+'</b></div><div class="kpi">Inventários<b>'+inventories.length+'</b></div></div>'+
+ '<div class="cards">'+locations.map(l=>'<div class="card loc-card" data-loc="'+esc(l.id)+'"><h3>'+esc(l.name)+'</h3><p>'+products.length+' artigos</p><div class="progress"><div id="bar-'+esc(l.id)+'" style="width:0%"></div></div><p><b id="count-'+esc(l.id)+'">0</b> contados</p></div>').join("")+'</div>';
+ bindNav();
+ document.querySelectorAll(".loc-card").forEach(x=>x.addEventListener("click",()=>openLocation(x.dataset.loc,inv?.id)));
+ if(inv)loadProgress(inv.id);
 }
 
-async function openLocation(lid,iid){
- currentLocation=locations.find(x=>String(x.id)===String(lid));
- currentInventory=inventories.find(x=>String(x.id)===String(iid))||null;
- if(!currentLocation||!currentInventory)return alert("Inventário não encontrado.");
- loading(`A carregar ${currentLocation.name}...`);
- try{await loadCounts();renderLocation()}catch(e){error(e.message)}
+async function loadProgress(invId){
+ const q=await db.from("counts").select("location_id,product_code").eq("inventory_id",invId);if(q.error)return;
+ const m={};(q.data||[]).forEach(r=>{(m[String(r.location_id)]??=new Set()).add(String(r.product_code))});
+ locations.forEach(l=>{let n=m[String(l.id)]?.size||0,p=products.length?Math.round(n/products.length*100):0;const c=document.getElementById("count-"+l.id),b=document.getElementById("bar-"+l.id);if(c)c.textContent=n;if(b)b.style.width=p+"%"})
 }
+
+async function openLocation(locId,invId){
+ currentLocation=locations.find(x=>String(x.id)===String(locId));currentInventory=inventories.find(x=>String(x.id)===String(invId));
+ if(!currentLocation||!currentInventory){alert("Armazém ou inventário não encontrado.");return}
+ loading("A carregar "+currentLocation.name+"...");
+ try{await loadCounts();renderLocation()}catch(e){showError(e)}
+}
+
 async function loadCounts(){
  currentCounts={};lastCounts={};
- let q=await db.from("counts").select("*").eq("inventory_id",currentInventory.id).eq("location_id",currentLocation.id);
- if(q.error)throw q.error;(q.data||[]).forEach(r=>currentCounts[r.product_code]=r.quantity);
- let ix=inventories.findIndex(x=>String(x.id)===String(currentInventory.id)),prev=inventories[ix+1];
- if(prev){q=await db.from("counts").select("*").eq("inventory_id",prev.id).eq("location_id",currentLocation.id);if(q.error)throw q.error;(q.data||[]).forEach(r=>lastCounts[r.product_code]=r.quantity)}
+ let q=await db.from("counts").select("*").eq("inventory_id",currentInventory.id).eq("location_id",currentLocation.id);if(q.error)throw q.error;
+ (q.data||[]).forEach(r=>currentCounts[String(r.product_code)]=r.quantity);
+ const ix=inventories.findIndex(x=>String(x.id)===String(currentInventory.id)),prev=inventories[ix+1];
+ if(prev){q=await db.from("counts").select("*").eq("inventory_id",prev.id).eq("location_id",currentLocation.id);if(q.error)throw q.error;(q.data||[]).forEach(r=>lastCounts[String(r.product_code)]=r.quantity)}
 }
+
 function renderLocation(){
- app.innerHTML=nav()+`<div class="topbar"><div><button class="btn-secondary" onclick="renderDashboard()">← Armazéns</button><h2>${esc(currentLocation.name)}</h2><small>${invName(currentInventory)} · ${products.length} artigos</small></div><button class="btn-success" onclick="save()">Guardar contagem</button></div>
- <div class="panel"><input id="search" class="search" placeholder="Pesquisar por código ou artigo..." oninput="filterProducts()"><div id="productTable"></div></div>`;
- renderProducts(products);
+ app.innerHTML=nav()+'<div class="topbar"><div><button id="back" class="secondary">← Armazéns</button><h2>'+esc(currentLocation.name)+'</h2><small>Inventário de '+d(currentInventory.created_at)+'</small></div><button id="save" class="success">Guardar contagem</button></div><div class="panel"><input id="search" class="search" placeholder="Pesquisar por código ou artigo..."><div id="ptable"></div></div>';
+ bindNav();document.getElementById("back").addEventListener("click",loadDashboard);document.getElementById("save").addEventListener("click",saveCounts);document.getElementById("search").addEventListener("input",filterProducts);renderProducts(products)
 }
+
 function renderProducts(list){
- if(!list.length){productTable.innerHTML='<div class="empty">Nenhum artigo encontrado.</div>';return}
- productTable.innerHTML=`<table><thead><tr><th>Código</th><th>Artigo</th><th>Última contagem</th><th>Nova contagem</th></tr></thead><tbody>${list.map(p=>{
- const l=lastCounts[p.code],c=currentCounts[p.code];
- return `<tr><td><b>${esc(p.code)}</b></td><td>${esc(p.description)}</td><td class="last-count">${l!==undefined?num(l):"—"}</td><td><input class="quantity" type="number" min="0" step="0.001" value="${c!==undefined?c:""}" onchange="setCount(${Number(p.code)},this.value)"></td></tr>`}).join("")}</tbody></table>`;
+ document.getElementById("ptable").innerHTML='<table><thead><tr><th>Código</th><th>Artigo</th><th>Última contagem</th><th>Nova contagem</th></tr></thead><tbody>'+list.map(p=>{let k=String(p.code),c=currentCounts[k],l=lastCounts[k];return '<tr><td><b>'+esc(k)+'</b></td><td>'+esc(p.description)+'</td><td><b>'+(l===undefined?"—":fmt(l))+'</b></td><td><input class="quantity count-input" data-code="'+esc(k)+'" type="number" min="0" step="0.001" value="'+(c===undefined?"":c)+'"></td></tr>'}).join("")+'</tbody></table>';
+ document.querySelectorAll(".count-input").forEach(i=>i.addEventListener("change",()=>{if(i.value==="")delete currentCounts[i.dataset.code];else currentCounts[i.dataset.code]=Number(i.value)}))
 }
-function filterProducts(){let s=search.value.toLowerCase().trim();renderProducts(products.filter(p=>String(p.code).toLowerCase().includes(s)||String(p.description).toLowerCase().includes(s)))}
-function setCount(code,value){if(value===""){delete currentCounts[code];return}let n=Number(value);if(!Number.isNaN(n)&&n>=0)currentCounts[code]=n}
+function filterProducts(){let s=document.getElementById("search").value.toLowerCase().trim();renderProducts(products.filter(p=>String(p.code).toLowerCase().includes(s)||String(p.description).toLowerCase().includes(s)))}
 
-async function save(){
+async function saveCounts(){
  const entries=Object.entries(currentCounts);if(!entries.length)return alert("Não introduziste nenhuma contagem.");
- if(!confirm(`Guardar ${entries.length} contagens no ${currentLocation.name}?`))return;
- try{
-  const rows=entries.map(([code,q])=>({inventory_id:currentInventory.id,location_id:currentLocation.id,product_code:Number(code),quantity:Number(q),counted_at:new Date().toISOString()}));
-  const q=await db.from("counts").upsert(rows,{onConflict:"inventory_id,location_id,product_code"});if(q.error)throw q.error;
-  alert("Contagem guardada com sucesso.");await loadBase();await openLocation(currentLocation.id,currentInventory.id);
- }catch(e){alert("Erro ao guardar: "+e.message)}
+ if(!confirm("Guardar "+entries.length+" contagens no "+currentLocation.name+"?"))return;
+ try{const rows=entries.map(([code,q])=>({inventory_id:currentInventory.id,location_id:currentLocation.id,product_code:Number(code),quantity:Number(q),counted_at:new Date().toISOString()}));const r=await db.from("counts").upsert(rows,{onConflict:"inventory_id,location_id,product_code"});if(r.error)throw r.error;alert("Contagem guardada com sucesso.");await loadBase();openLocation(currentLocation.id,currentInventory.id)}catch(e){alert("Erro ao guardar: "+e.message)}
 }
 
-async function renderHistory(){
+async function showHistory(){
  loading("A carregar histórico...");
- try{
-  await loadBase();
-  app.innerHTML=nav()+`<div class="topbar"><div><h2>Histórico de inventários</h2><small>Consultar e alterar contagens anteriores</small></div></div>
-  <div class="panel">${inventories.length?inventories.map(i=>`<div class="history-item"><div><b>${invName(i)}</b><div class="muted">Criado em ${datetime(i.created_at)}</div></div><div class="actions"><button class="btn-primary" onclick="historyInventory(${JSON.stringify(String(i.id))})">Consultar / Editar</button><button class="btn-success" onclick="exportInventory(${JSON.stringify(String(i.id))})">Excel</button></div></div>`).join(""):'<div class="empty">Ainda não existem inventários.</div>'}</div>`;
- }catch(e){error(e.message)}
-}
-function historyInventory(id){
- currentInventory=inventories.find(x=>String(x.id)===String(id));if(!currentInventory)return;
- app.innerHTML=nav()+`<div class="topbar"><div><button class="btn-secondary" onclick="renderHistory()">← Histórico</button><h2>${invName(currentInventory)}</h2></div><button class="btn-success" onclick="exportInventory(${JSON.stringify(String(id))})">📊 Exportar Excel</button></div>
- <div class="cards">${locations.map(l=>`<div class="card" onclick="openLocation(${JSON.stringify(String(l.id))},${JSON.stringify(String(id))})"><h3>${esc(l.name)}</h3><p>Consultar / editar contagens</p></div>`).join("")}</div>`;
+ try{await loadBase();app.innerHTML=nav()+'<div class="topbar"><div><h2>Histórico de inventários</h2><small>'+inventories.length+' inventário(s)</small></div></div><div class="panel">'+(inventories.length?inventories.map(i=>'<div class="history"><div><b>Inventário de '+d(i.created_at)+'</b><div class="muted">Criado em '+dt(i.created_at)+'</div></div><div class="actions"><button class="primary view-inv" data-id="'+esc(i.id)+'">Consultar / Editar</button><button class="success export-inv" data-id="'+esc(i.id)+'">Excel</button></div></div>').join(""):'<div class="empty">Não existem inventários.</div>')+'</div>';bindNav();
+ document.querySelectorAll(".view-inv").forEach(b=>b.addEventListener("click",()=>viewInventory(b.dataset.id)));
+ document.querySelectorAll(".export-inv").forEach(b=>b.addEventListener("click",()=>exportInventory(b.dataset.id)))
+ }catch(e){showError(e)}
 }
 
-async function inventoryRows(id){
- const q=await db.from("counts").select("inventory_id,location_id,product_code,quantity,counted_at").eq("inventory_id",id);if(q.error)throw q.error;
- const lm=Object.fromEntries(locations.map(x=>[x.id,x.name])),pm=Object.fromEntries(products.map(x=>[x.code,x]));
- return (q.data||[]).map(r=>{let p=pm[r.product_code]||{};return {Codigo:r.product_code,Artigo:p.description||"",Unidade:p.unit||"",Armazem:lm[r.location_id]||r.location_id,Quantidade:Number(r.quantity),Data:r.counted_at?datetime(r.counted_at):""}});
+function viewInventory(id){
+ currentInventory=inventories.find(x=>String(x.id)===String(id));if(!currentInventory)return alert("Inventário não encontrado.");
+ app.innerHTML=nav()+'<div class="topbar"><div><button id="bh" class="secondary">← Histórico</button><h2>Inventário de '+d(currentInventory.created_at)+'</h2><small>Escolhe um armazém</small></div><button id="ex" class="success">📊 Exportar Excel</button></div><div class="cards">'+locations.map(l=>'<div class="card old-loc" data-loc="'+esc(l.id)+'"><h3>'+esc(l.name)+'</h3><p>Consultar / editar</p></div>').join("")+'</div>';
+ bindNav();document.getElementById("bh").addEventListener("click",showHistory);document.getElementById("ex").addEventListener("click",()=>exportInventory(id));document.querySelectorAll(".old-loc").forEach(x=>x.addEventListener("click",()=>openLocation(x.dataset.loc,id)))
 }
+
+async function getRows(id){
+ const q=await db.from("counts").select("*").eq("inventory_id",id);if(q.error)throw q.error;
+ const lm=Object.fromEntries(locations.map(x=>[String(x.id),x.name])),pm=Object.fromEntries(products.map(x=>[String(x.code),x]));
+ return (q.data||[]).map(r=>({Codigo:r.product_code,Artigo:pm[String(r.product_code)]?.description||"",Unidade:pm[String(r.product_code)]?.unit||"",Armazem:lm[String(r.location_id)]||String(r.location_id),Quantidade:Number(r.quantity),Data:r.counted_at?dt(r.counted_at):""}))
+}
+
+function csvDownload(rows,name){
+ if(!rows.length)return alert("Não existem contagens para exportar.");
+ const keys=Object.keys(rows[0]);const text=[keys,...rows.map(r=>keys.map(k=>String(r[k]??"").replaceAll('"','""')))].map(a=>a.map(v=>'"'+v+'"').join(";")).join("\r\n");
+ const blob=new Blob(["\uFEFF"+text],{type:"text/csv;charset=utf-8"}),u=URL.createObjectURL(blob),a=document.createElement("a");a.href=u;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(u),1000)
+}
+
 async function exportInventory(id){
  try{
-  if(typeof XLSX==="undefined") throw new Error("A biblioteca de Excel não foi carregada. Verifica a ligação à internet e atualiza a página.");
-
-  const inv=inventories.find(x=>String(x.id)===String(id)),rows=await inventoryRows(id),map={};
-  rows.forEach(r=>{map[r.Codigo]??={Codigo:r.Codigo,Artigo:r.Artigo,Unidade:r.Unidade};map[r.Codigo][r.Armazem]=r.Quantidade});
-  Object.values(map).forEach(r=>locations.forEach(l=>{if(r[l.name]===undefined)r[l.name]=0}));
-  Object.values(map).forEach(r=>r.Total=locations.reduce((s,l)=>s+Number(r[l.name]||0),0));
-  let wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(Object.values(map)),"Resumo");XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(rows),"Contagens");
-  XLSX.writeFile(wb,`Inventario_${date(inv.created_at).replaceAll("/","-")}.xlsx`);
+  const inv=inventories.find(x=>String(x.id)===String(id));if(!inv)throw new Error("Inventário não encontrado.");
+  const rows=await getRows(id);if(!rows.length)return alert("Este inventário ainda não tem contagens.");
+  const map={};rows.forEach(r=>{let k=String(r.Codigo);map[k]??={Codigo:r.Codigo,Artigo:r.Artigo,Unidade:r.Unidade};map[k][r.Armazem]=r.Quantidade});
+  Object.values(map).forEach(r=>{locations.forEach(l=>{if(r[l.name]===undefined)r[l.name]=0});r.Total=locations.reduce((s,l)=>s+Number(r[l.name]||0),0)});
+  const resumo=Object.values(map);
+  if(window.XLSX){const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(resumo),"Resumo");XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(rows),"Contagens");XLSX.writeFile(wb,"Inventario_"+d(inv.created_at).replaceAll("/","-")+".xlsx")}
+  else{csvDownload(resumo,"Inventario_"+d(inv.created_at).replaceAll("/","-")+".csv");alert("O Excel não carregou. Foi descarregado um CSV que abre diretamente no Excel.")}
  }catch(e){alert("Erro ao exportar: "+e.message)}
 }
 
-async function renderReport(){
+async function showStock(){
  loading("A preparar stock...");
- try{
-  await loadBase();if(!inventories.length){app.innerHTML=nav()+'<div class="panel empty">Ainda não existem inventários.</div>';return}
-  let rows=await inventoryRows(inventories[0].id),map={};rows.forEach(r=>{map[r.Codigo]??={Codigo:r.Codigo,Artigo:r.Artigo,Total:0};map[r.Codigo].Total+=r.Quantidade});
-  window.reportRows=Object.values(map);
-  app.innerHTML=nav()+`<div class="topbar"><div><h2>Stock físico total</h2><small>${invName(inventories[0])}</small></div><button class="btn-success" onclick="exportInventory(${inventories[0].id})">📊 Exportar Excel</button></div>
-  <div class="kpis"><div class="kpi">Artigos contados<b>${reportRows.length}</b></div><div class="kpi">Armazéns<b>${locations.length}</b></div><div class="kpi">Quantidade total<b>${num(reportRows.reduce((s,x)=>s+x.Total,0))}</b></div></div>
-  <div class="panel"><input id="reportSearch" class="search" placeholder="Pesquisar artigo..." oninput="filterReport()"><div id="reportTable"></div></div>`;
-  renderReportRows(reportRows);
- }catch(e){error(e.message)}
+ try{await loadBase();if(!inventories.length){app.innerHTML=nav()+'<div class="panel empty">Ainda não existem inventários.</div>';bindNav();return}let rows=await getRows(inventories[0].id),m={};rows.forEach(r=>{let k=String(r.Codigo);m[k]??={Codigo:r.Codigo,Artigo:r.Artigo,Total:0};m[k].Total+=r.Quantidade});reportRows=Object.values(m);
+ app.innerHTML=nav()+'<div class="topbar"><div><h2>Stock físico total</h2><small>Inventário de '+d(inventories[0].created_at)+'</small></div><button id="stockExport" class="success">📊 Exportar Excel</button></div><div class="panel"><input id="stockSearch" class="search" placeholder="Pesquisar artigo..."><div id="stockTable"></div></div>';bindNav();document.getElementById("stockExport").addEventListener("click",()=>exportInventory(inventories[0].id));document.getElementById("stockSearch").addEventListener("input",filterStock);renderStock(reportRows)
+ }catch(e){showError(e)}
 }
-function renderReportRows(rows){reportTable.innerHTML=`<table><thead><tr><th>Código</th><th>Artigo</th><th>Stock físico total</th></tr></thead><tbody>${rows.map(r=>`<tr><td><b>${esc(r.Codigo)}</b></td><td>${esc(r.Artigo)}</td><td><b>${num(r.Total)}</b></td></tr>`).join("")}</tbody></table>`}
-function filterReport(){let s=reportSearch.value.toLowerCase().trim();renderReportRows(reportRows.filter(r=>String(r.Codigo).toLowerCase().includes(s)||String(r.Artigo).toLowerCase().includes(s)))}
+function renderStock(rows){document.getElementById("stockTable").innerHTML='<table><thead><tr><th>Código</th><th>Artigo</th><th>Stock físico total</th></tr></thead><tbody>'+rows.map(r=>'<tr><td><b>'+esc(r.Codigo)+'</b></td><td>'+esc(r.Artigo)+'</td><td><b>'+fmt(r.Total)+'</b></td></tr>').join("")+'</tbody></table>'}
+function filterStock(){let s=document.getElementById("stockSearch").value.toLowerCase().trim();renderStock(reportRows.filter(r=>String(r.Codigo).toLowerCase().includes(s)||String(r.Artigo).toLowerCase().includes(s)))}
 
 loadDashboard();
 </script>
