@@ -106,7 +106,7 @@ async function loadCounts(){
 
 function renderLocation(){
  app.innerHTML=nav()+'<div class="topbar"><div><button id="back" class="secondary">← Armazéns</button><h2>'+esc(currentLocation.name)+'</h2><small>Inventário de '+d(currentInventory.created_at)+'</small></div><div class="actions"><button id="save" class="success">Guardar contagem</button><button id="closeInv" class="secondary">🔒 Fechar inventário</button></div></div><div class="panel"><input id="search" class="search" placeholder="Pesquisar por código ou artigo..."><div id="ptable"></div></div>';
- bindNav();const op=document.getElementById("operatorSelect");if(op){op.addEventListener("change",e=>{currentOperator=e.target.value;localStorage.setItem("inventory_operator",currentOperator)});}document.getElementById("back").addEventListener("click",loadDashboard);document.getElementById("save").addEventListener("click",saveCounts);document.getElementById("closeInv").addEventListener("click",closeInventory);document.getElementById("search").addEventListener("input",filterProducts);renderProducts(products)
+ bindNav();document.getElementById("back").addEventListener("click",loadDashboard);document.getElementById("save").addEventListener("click",saveCounts);document.getElementById("closeInv").addEventListener("click",closeInventory);document.getElementById("search").addEventListener("input",filterProducts);renderProducts(products)
 }
 
 function renderProducts(list){
