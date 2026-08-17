@@ -31,7 +31,8 @@ const SUPABASE_URL="https://cngnoirjlpfpipbmlens.supabase.co";
 const SUPABASE_KEY="sb_publishable_qO1UjfG_RDNFTz2G6LM9rA_qpk6zHVx";
 const db=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
 
-let locations=[],products=[],inventories=[],currentInventory=null,currentLocation=null,lastCounts={},currentCounts={},reportRows=[];\nlet currentOperator=localStorage.getItem("inventory_operator")||"";
+let locations=[],products=[],inventories=[],currentInventory=null,currentLocation=null,lastCounts={},currentCounts={},reportRows=[];
+let currentOperator=localStorage.getItem("inventory_operator")||"";
 
 const app=document.getElementById("app");
 const esc=v=>String(v??"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;").replaceAll("'","&#039;");
