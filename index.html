@@ -9,6 +9,8 @@
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
 <style>
 :root{
  --brown:#493631;--brown-dark:#332521;--brown-light:#8C6F58;
@@ -46,6 +48,10 @@ table{width:100%;border-collapse:collapse}th{background:var(--tan);color:var(--b
 .op-badge{display:flex;align-items:center;gap:8px}
 .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--brown-dark);color:#fff;padding:14px 22px;border-radius:10px;font-size:15px;max-width:90%;z-index:50;box-shadow:0 6px 20px rgba(0,0,0,.25)}
 .toast.error{background:var(--danger)}
+.scan-modal{position:fixed;inset:0;background:rgba(51,37,33,.85);z-index:60;display:flex;align-items:center;justify-content:center;padding:16px}
+.scan-box{background:var(--cream-card);border-radius:14px;padding:18px;max-width:420px;width:100%;text-align:center}
+.scan-box h3{margin:0 0 10px;color:var(--brown)}
+#scanReader{border-radius:10px;overflow:hidden}
 </style>
 </head>
 <body>
@@ -184,8 +190,38 @@ async function loadCounts(){
 
 function renderLocation(){
  const closed=currentInventory.status==="fechado";
- app.innerHTML=nav()+'<div class="topbar"><div><button id="back" class="secondary">← Armazéns</button><h2>'+esc(currentLocation.name)+'</h2><small>'+(currentInventory.name?esc(currentInventory.name):"Inventário de "+d(currentInventory.created_at))+(closed?' · <b>fechado</b>':'')+'</small></div><div class="actions">'+(closed?'<button id="closeInv" class="secondary">🔓 Reabrir inventário</button>':'<button id="save" class="success">Guardar contagem</button><button id="closeInv" class="secondary">🔒 Fechar inventário</button>')+'</div></div><div class="panel"><input id="search" class="search" placeholder="Pesquisar por código ou artigo..."><div id="ptable"></div></div>';
- bindNav();document.getElementById("back").addEventListener("click",loadDashboard);document.getElementById("save")?.addEventListener("click",saveCounts);document.getElementById("closeInv").addEventListener("click",closed?()=>reopenInventory(currentInventory.id):closeInventory);document.getElementById("search").addEventListener("input",filterProducts);renderProducts(activeProducts())
+ app.innerHTML=nav()+'<div class="topbar"><div><button id="back" class="secondary">← Armazéns</button><h2>'+esc(currentLocation.name)+'</h2><small>'+(currentInventory.name?esc(currentInventory.name):"Inventário de "+d(currentInventory.created_at))+(closed?' · <b>fechado</b>':'')+'</small></div><div class="actions">'+(closed?'<button id="closeInv" class="secondary">🔓 Reabrir inventário</button>':'<button id="save" class="success">Guardar contagem</button><button id="closeInv" class="secondary">🔒 Fechar inventário</button>')+'</div></div><div class="panel"><div style="display:flex;gap:8px"><input id="search" class="search" style="margin:0" placeholder="Pesquisar por código ou artigo...">'+(closed?'':'<button id="scanBtn" class="primary" style="white-space:nowrap">📷 Ler código</button>')+'</div><div id="ptable"></div></div>';
+ bindNav();document.getElementById("back").addEventListener("click",loadDashboard);document.getElementById("save")?.addEventListener("click",saveCounts);document.getElementById("closeInv").addEventListener("click",closed?()=>reopenInventory(currentInventory.id):closeInventory);document.getElementById("search").addEventListener("input",filterProducts);document.getElementById("scanBtn")?.addEventListener("click",openScanner);renderProducts(activeProducts())
+}
+
+let scanner=null;
+
+function openScanner(){
+ const div=document.createElement("div");div.className="scan-modal";div.id="scanModal";
+ div.innerHTML='<div class="scan-box"><h3>📷 Aponta ao código</h3><div id="scanReader"></div><p class="muted" style="margin:10px 0 14px">Aceita código de barras (EAN) ou QR do artigo</p><button id="scanClose" class="secondary">Cancelar</button></div>';
+ document.body.appendChild(div);
+ document.getElementById("scanClose").addEventListener("click",closeScanner);
+ scanner=new Html5Qrcode("scanReader");
+ scanner.start({facingMode:"environment"},{fps:10,qrbox:{width:250,height:150}},onScanSuccess,()=>{}).catch(e=>{
+  toast("Não foi possível aceder à câmara: "+e,true);closeScanner();
+ });
+}
+
+function closeScanner(){
+ if(scanner){scanner.stop().then(()=>scanner.clear()).catch(()=>{});scanner=null}
+ document.getElementById("scanModal")?.remove();
+}
+
+function onScanSuccess(text){
+ const code=text.trim();
+ const match=activeProducts().find(p=>String(p.code)===code||(p.barcode&&String(p.barcode)===code));
+ closeScanner();
+ if(!match){toast("Nenhum artigo encontrado para \""+code+"\".",true);return}
+ const s=document.getElementById("search");if(s){s.value=match.code;filterProducts()}
+ setTimeout(()=>{
+  const input=document.querySelector('.count-input[data-code="'+CSS.escape(String(match.code))+'"]');
+  if(input){input.focus();input.select();toast("✅ "+match.description)}
+ },50);
 }
 
 function renderProducts(list){
@@ -409,13 +445,14 @@ function renderManage(){
   '<div id="locList">'+locations.map(l=>'<div class="history"><span>'+esc(l.name)+(l.active===false?' <span class="muted">(inativo)</span>':'')+'</span><button class="secondary toggle-loc" data-id="'+esc(l.id)+'" data-active="'+(l.active!==false)+'">'+(l.active===false?"Ativar":"Desativar")+'</button></div>').join("")+'</div>'+
  '</div>'+
  '<div class="panel"><h3>Artigos</h3>'+
-  '<div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap"><input id="newProdCode" placeholder="Código" style="width:90px;padding:11px;border:1px solid var(--tan);border-radius:8px"><input id="newProdDesc" placeholder="Descrição" style="flex:1;min-width:150px;padding:11px;border:1px solid var(--tan);border-radius:8px"><input id="newProdUnit" placeholder="Unidade (ex: UNI)" style="width:100px;padding:11px;border:1px solid var(--tan);border-radius:8px"><input id="newProdCost" type="number" step="0.0001" min="0" placeholder="Custo €" style="width:100px;padding:11px;border:1px solid var(--tan);border-radius:8px"><button id="addProd" class="primary">Adicionar</button></div>'+
-  '<input id="prodSearch" class="search" placeholder="Pesquisar artigo...">'+
+  '<div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap"><input id="newProdCode" placeholder="Código" style="width:80px;padding:11px;border:1px solid var(--tan);border-radius:8px"><input id="newProdDesc" placeholder="Descrição" style="flex:1;min-width:140px;padding:11px;border:1px solid var(--tan);border-radius:8px"><input id="newProdUnit" placeholder="Unidade" style="width:80px;padding:11px;border:1px solid var(--tan);border-radius:8px"><input id="newProdCost" type="number" step="0.0001" min="0" placeholder="Custo €" style="width:90px;padding:11px;border:1px solid var(--tan);border-radius:8px"><input id="newProdBarcode" placeholder="Cód. barras (opcional)" style="width:150px;padding:11px;border:1px solid var(--tan);border-radius:8px"><button id="addProd" class="primary">Adicionar</button></div>'+
+  '<div style="display:flex;gap:8px;margin-bottom:14px"><input id="prodSearch" class="search" style="margin:0;flex:1" placeholder="Pesquisar artigo..."><button id="printLabels" class="secondary" style="white-space:nowrap">🏷️ Imprimir etiquetas QR</button></div>'+
   '<div id="prodList">'+renderProdListHtml(products)+'</div>'+
  '</div></div>';
  bindNav();
  document.getElementById("addLoc").addEventListener("click",addLocation);
  document.getElementById("addProd").addEventListener("click",addProduct);
+ document.getElementById("printLabels").addEventListener("click",printLabels);
  document.getElementById("prodSearch").addEventListener("input",()=>{
   const s=document.getElementById("prodSearch").value.toLowerCase().trim();
   document.getElementById("prodList").innerHTML=renderProdListHtml(products.filter(p=>String(p.code).toLowerCase().includes(s)||String(p.description).toLowerCase().includes(s)));
@@ -425,7 +462,7 @@ function renderManage(){
 }
 
 function renderProdListHtml(list){
- return list.map(p=>'<div class="history"><span><b>'+esc(p.code)+'</b> — '+esc(p.description)+(p.active===false?' <span class="muted">(inativo)</span>':'')+'</span><span style="display:flex;gap:8px;align-items:center"><span class="muted">€</span><input type="number" step="0.0001" min="0" class="quantity cost-input" style="width:90px" data-code="'+esc(p.code)+'" value="'+(p.cost_price??"")+'" placeholder="0.00"><button class="secondary toggle-prod" data-code="'+esc(p.code)+'" data-active="'+(p.active!==false)+'">'+(p.active===false?"Ativar":"Desativar")+'</button></span></div>').join("");
+ return list.map(p=>'<div class="history"><span><b>'+esc(p.code)+'</b> — '+esc(p.description)+(p.barcode?' <span class="muted">· 🔖 '+esc(p.barcode)+'</span>':'')+(p.active===false?' <span class="muted">(inativo)</span>':'')+'</span><span style="display:flex;gap:8px;align-items:center"><span class="muted">€</span><input type="number" step="0.0001" min="0" class="quantity cost-input" style="width:90px" data-code="'+esc(p.code)+'" value="'+(p.cost_price??"")+'" placeholder="0.00"><button class="secondary toggle-prod" data-code="'+esc(p.code)+'" data-active="'+(p.active!==false)+'">'+(p.active===false?"Ativar":"Desativar")+'</button></span></div>').join("");
 }
 
 function bindCostInputs(){
@@ -458,11 +495,30 @@ async function addLocation(){
  catch(e){alert("Erro ao adicionar armazém: "+e.message)}
 }
 
+async function printLabels(){
+ const list=activeProducts();
+ if(!list.length){toast("Não há artigos ativos.",true);return}
+ const w=window.open("","_blank");
+ w.document.write('<html><head><title>Etiquetas · Ti\'Piedade</title><style>body{font-family:Arial,sans-serif;margin:0;padding:10px}.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.label{border:1px dashed #999;padding:8px;text-align:center;page-break-inside:avoid}.label canvas{max-width:100%}.label b{display:block;font-size:13px;margin-top:4px}.label small{color:#666;font-size:11px}@media print{.label{border:1px solid #ccc}}</style></head><body><div class="grid" id="grid"></div></body></html>');
+ w.document.close();
+ const grid=w.document.getElementById("grid");
+ for(const p of list){
+  const cell=w.document.createElement("div");cell.className="label";
+  const canvas=w.document.createElement("canvas");
+  cell.appendChild(canvas);
+  const b=w.document.createElement("b");b.textContent=p.code;cell.appendChild(b);
+  const s=w.document.createElement("small");s.textContent=p.description;cell.appendChild(s);
+  grid.appendChild(cell);
+  await QRCode.toCanvas(canvas,String(p.code),{width:110,margin:1});
+ }
+ setTimeout(()=>w.print(),400);
+}
+
 async function addProduct(){
- const code=document.getElementById("newProdCode").value.trim(),description=document.getElementById("newProdDesc").value.trim(),unit=document.getElementById("newProdUnit").value.trim(),costVal=document.getElementById("newProdCost").value;
+ const code=document.getElementById("newProdCode").value.trim(),description=document.getElementById("newProdDesc").value.trim(),unit=document.getElementById("newProdUnit").value.trim(),costVal=document.getElementById("newProdCost").value,barcodeVal=document.getElementById("newProdBarcode").value.trim();
  if(!code||!description){alert("Código e descrição são obrigatórios.");return}
  const cost_price=costVal===""?null:Number(costVal);
- try{const r=await db.from("products").insert({code,description,unit,active:true,cost_price});if(r.error)throw r.error;await loadBase();renderManage()}
+ try{const r=await db.from("products").insert({code,description,unit,active:true,cost_price,barcode:barcodeVal||null});if(r.error)throw r.error;await loadBase();renderManage()}
  catch(e){alert("Erro ao adicionar artigo: "+e.message)}
 }
 
