@@ -21,6 +21,11 @@ table{width:100%;border-collapse:collapse}th{background:#f1f3f5;text-align:left;
 .status{padding:8px 12px;border-radius:20px;background:#e9f7ef;color:#198754;font-size:13px}.error{background:#fff0f0;color:#b42318;padding:15px;border-radius:8px;margin-bottom:15px}
 .history{display:flex;justify-content:space-between;align-items:center;gap:15px;padding:16px;border-top:1px solid #eee}.history:first-child{border-top:0}.actions{display:flex;gap:8px;flex-wrap:wrap}
 @media(max-width:700px){.container{padding:12px}.history{flex-direction:column;align-items:flex-start}th:nth-child(2),td:nth-child(2){display:none}}
+.login-box{max-width:340px;margin:60px auto;background:#fff;border:1px solid #e1e5e9;border-radius:12px;padding:28px;text-align:center}
+.login-box h2{margin-top:0}
+.login-box select,.login-box input{width:100%;padding:13px;border:1px solid #ccd2d8;border-radius:8px;font-size:17px;margin-bottom:12px;text-align:center}
+.login-box button{width:100%;padding:13px;font-size:16px}
+.op-badge{display:flex;align-items:center;gap:8px}
 </style>
 </head>
 <body>
@@ -32,28 +37,51 @@ const SUPABASE_KEY="sb_publishable_qO1UjfG_RDNFTz2G6LM9rA_qpk6zHVx";
 const db=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
 
 let locations=[],products=[],inventories=[],currentInventory=null,currentLocation=null,lastCounts={},currentCounts={},reportRows=[];
-let currentOperator=localStorage.getItem("inventory_operator")||"";
-function setOperator(value){
- currentOperator=value||"";
- if(currentOperator)localStorage.setItem("inventory_operator",currentOperator);
- else localStorage.removeItem("inventory_operator");
-}
-function setOperator(value){
- currentOperator=value||"";
- if(currentOperator)localStorage.setItem("inventory_operator",currentOperator);
- else localStorage.removeItem("inventory_operator");
-}
-function setOperator(value){
- currentOperator=value||"";
- if(currentOperator)localStorage.setItem("inventory_operator",currentOperator);
- else localStorage.removeItem("inventory_operator");
-}
+let currentOperator="";
+// Mapa operador -> email interno (a conta real fica no Supabase Auth; o operador só vê o nome + PIN)
+const OPERATORS={"Beatriz":"beatriz@inventario-pltp.app","Inês":"ines@inventario-pltp.app","Rui":"rui@inventario-pltp.app","Milene":"milene@inventario-pltp.app"};
 
 const app=document.getElementById("app");
 const esc=v=>String(v??"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;").replaceAll("'","&#039;");
 const fmt=n=>Number(n||0).toLocaleString("pt-PT",{maximumFractionDigits:3});
 const d=v=>new Date(v).toLocaleDateString("pt-PT");
 const dt=v=>new Date(v).toLocaleString("pt-PT",{dateStyle:"short",timeStyle:"short"});
+
+function renderLogin(err){
+ app.innerHTML='<div class="login-box"><h2>🔐 Inventário</h2><p class="muted">Seleciona o teu nome e introduz o PIN</p>'+
+ (err?'<div class="error">'+esc(err)+'</div>':'')+
+ '<select id="loginOp"><option value="">Selecionar operador</option>'+Object.keys(OPERATORS).map(n=>'<option>'+n+'</option>').join("")+'</select>'+
+ '<input id="loginPin" type="password" inputmode="numeric" placeholder="PIN" maxlength="8">'+
+ '<button id="loginBtn" class="primary">Entrar</button></div>';
+ document.getElementById("loginBtn").addEventListener("click",doLogin);
+ document.getElementById("loginPin").addEventListener("keydown",e=>{if(e.key==="Enter")doLogin()});
+}
+
+async function doLogin(){
+ const name=document.getElementById("loginOp").value,pin=document.getElementById("loginPin").value;
+ if(!name){renderLogin("Escolhe o teu nome.");return}
+ if(!pin||pin.length<6){renderLogin("O PIN tem de ter pelo menos 6 dígitos.");return}
+ const email=OPERATORS[name];
+ loading("A entrar...");
+ const{error}=await db.auth.signInWithPassword({email,password:pin});
+ if(error){renderLogin("PIN incorreto para "+name+".");return}
+ currentOperator=name;
+ loadDashboard();
+}
+
+async function doLogout(){
+ await db.auth.signOut();currentOperator="";renderLogin();
+}
+
+async function boot(){
+ const{data}=await db.auth.getSession();
+ if(!data.session){renderLogin();return}
+ const email=data.session.user.email;
+ const name=Object.keys(OPERATORS).find(n=>OPERATORS[n]===email);
+ if(!name){await db.auth.signOut();renderLogin();return}
+ currentOperator=name;
+ loadDashboard();
+}
 
 function nav(){return '<div class="nav"><button id="dashboard" class="secondary">🏠 Dashboard</button><button id="history" class="secondary">🕘 Histórico</button><button id="stock" class="secondary">📊 Stock</button><button id="compare" class="secondary">↔ Comparar</button></div>'}
 function bindNav(){document.getElementById("dashboard")?.addEventListener("click",loadDashboard);document.getElementById("history")?.addEventListener("click",showHistory);document.getElementById("stock")?.addEventListener("click",showStock);document.getElementById("compare")?.addEventListener("click",showCompare)}
@@ -75,10 +103,11 @@ async function loadDashboard(){
 
 function renderDashboard(){
  const inv=inventories[0];
- app.innerHTML=nav()+'<div class="topbar"><div><h2>Inventário atual</h2><small>'+products.length+' artigos · '+locations.length+' armazéns</small></div><div class="actions"><label class="muted">Operador: <select id="operatorSelect" onchange="setOperator(this.value)" style="padding:9px;border:1px solid #ccd2d8;border-radius:8px"><option value="">Selecionar</option>'+["Beatriz","Inês","Rui","Milene"].map(n=>'<option '+(currentOperator===n?'selected':'')+'>'+n+'</option>').join("")+'</select></label><span class="status">'+(inv?"Inventário de "+d(inv.created_at):"Sem inventário")+'</span></div></div>'+
+ app.innerHTML=nav()+'<div class="topbar"><div><h2>Inventário atual</h2><small>'+products.length+' artigos · '+locations.length+' armazéns</small></div><div class="actions op-badge"><span class="status">👤 '+esc(currentOperator)+'</span><span class="status">'+(inv?"Inventário de "+d(inv.created_at):"Sem inventário")+'</span><button id="logoutBtn" class="secondary">Sair</button></div></div>'+
  '<div class="kpis"><div class="kpi">Artigos<b>'+products.length+'</b></div><div class="kpi">Armazéns<b>'+locations.length+'</b></div><div class="kpi">Inventários<b>'+inventories.length+'</b></div></div>'+
  '<div class="cards">'+locations.map(l=>'<div class="card loc-card" data-loc="'+esc(l.id)+'"><h3>'+esc(l.name)+'</h3><p>'+products.length+' artigos</p><p class="muted">'+(inv?.status?esc(inv.status):"aberto")+'</p><div class="progress"><div id="bar-'+esc(l.id)+'" style="width:0%"></div></div><p><b id="count-'+esc(l.id)+'">0</b> contados</p></div>').join("")+'</div>';
  bindNav();
+ document.getElementById("logoutBtn")?.addEventListener("click",doLogout);
  document.querySelectorAll(".loc-card").forEach(x=>x.addEventListener("click",()=>openLocation(x.dataset.loc,inv?.id)));
  if(inv)loadProgress(inv.id);
 }
@@ -90,7 +119,7 @@ async function loadProgress(invId){
 }
 
 async function openLocation(locId,invId){
- currentLocation=locations.find(x=>String(x.id)===String(locId));currentInventory=inventories.find(x=>String(x.id)===String(invId)); if(!currentOperator){alert("Seleciona primeiro quem está a fazer a contagem.");return;}
+ currentLocation=locations.find(x=>String(x.id)===String(locId));currentInventory=inventories.find(x=>String(x.id)===String(invId));
  if(!currentLocation||!currentInventory){alert("Armazém ou inventário não encontrado.");return}
  loading("A carregar "+currentLocation.name+"...");
  try{await loadCounts();renderLocation()}catch(e){showError(e)}
@@ -269,7 +298,7 @@ async function showStock(){
 function renderStock(rows){document.getElementById("stockTable").innerHTML='<table><thead><tr><th>Código</th><th>Artigo</th><th>Stock físico total</th></tr></thead><tbody>'+rows.map(r=>'<tr><td><b>'+esc(r.Codigo)+'</b></td><td>'+esc(r.Artigo)+'</td><td><b>'+fmt(r.Total)+'</b></td></tr>').join("")+'</tbody></table>'}
 function filterStock(){let s=document.getElementById("stockSearch").value.toLowerCase().trim();renderStock(reportRows.filter(r=>String(r.Codigo).toLowerCase().includes(s)||String(r.Artigo).toLowerCase().includes(s)))}
 
-loadDashboard();
+boot();
 </script>
 </body>
 </html>
