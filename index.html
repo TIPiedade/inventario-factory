@@ -83,8 +83,8 @@ async function boot(){
  loadDashboard();
 }
 
-function nav(){return '<div class="nav"><button id="dashboard" class="secondary">🏠 Dashboard</button><button id="history" class="secondary">🕘 Histórico</button><button id="stock" class="secondary">📊 Stock</button><button id="compare" class="secondary">↔ Comparar</button></div>'}
-function bindNav(){document.getElementById("dashboard")?.addEventListener("click",loadDashboard);document.getElementById("history")?.addEventListener("click",showHistory);document.getElementById("stock")?.addEventListener("click",showStock);document.getElementById("compare")?.addEventListener("click",showCompare)}
+function nav(){return '<div class="nav"><button id="dashboard" class="secondary">🏠 Dashboard</button><button id="history" class="secondary">🕘 Histórico</button><button id="stock" class="secondary">📊 Stock</button><button id="compare" class="secondary">↔ Comparar</button><button id="manage" class="secondary">⚙️ Artigos/Armazéns</button></div>'}
+function bindNav(){document.getElementById("dashboard")?.addEventListener("click",loadDashboard);document.getElementById("history")?.addEventListener("click",showHistory);document.getElementById("stock")?.addEventListener("click",showStock);document.getElementById("compare")?.addEventListener("click",showCompare);document.getElementById("manage")?.addEventListener("click",showManage)}
 function loading(t){app.innerHTML='<div class="panel empty">'+esc(t)+'</div>'}
 function showError(e){app.innerHTML=nav()+'<div class="error"><b>Erro:</b><br>'+esc(e?.message||e)+'</div>';bindNav()}
 
@@ -95,6 +95,8 @@ async function loadBase(){
  if(l.error)throw l.error;if(p.error)throw p.error;if(i.error)throw i.error;
  locations=l.data||[];products=p.data||[];inventories=i.data||[];
 }
+const activeProducts=()=>products.filter(p=>p.active!==false);
+const activeLocations=()=>locations.filter(l=>l.active!==false);
 
 async function loadDashboard(){
  loading("A carregar inventário...");
@@ -102,20 +104,31 @@ async function loadDashboard(){
 }
 
 function renderDashboard(){
- const inv=inventories[0];
- app.innerHTML=nav()+'<div class="topbar"><div><h2>Inventário atual</h2><small>'+products.length+' artigos · '+locations.length+' armazéns</small></div><div class="actions op-badge"><span class="status">👤 '+esc(currentOperator)+'</span><span class="status">'+(inv?"Inventário de "+d(inv.created_at):"Sem inventário")+'</span><button id="logoutBtn" class="secondary">Sair</button></div></div>'+
- '<div class="kpis"><div class="kpi">Artigos<b>'+products.length+'</b></div><div class="kpi">Armazéns<b>'+locations.length+'</b></div><div class="kpi">Inventários<b>'+inventories.length+'</b></div></div>'+
- '<div class="cards">'+locations.map(l=>'<div class="card loc-card" data-loc="'+esc(l.id)+'"><h3>'+esc(l.name)+'</h3><p>'+products.length+' artigos</p><p class="muted">'+(inv?.status?esc(inv.status):"aberto")+'</p><div class="progress"><div id="bar-'+esc(l.id)+'" style="width:0%"></div></div><p><b id="count-'+esc(l.id)+'">0</b> contados</p></div>').join("")+'</div>';
+ const inv=inventories[0],aLoc=activeLocations(),aProd=activeProducts();
+ app.innerHTML=nav()+'<div class="topbar"><div><h2>Inventário atual</h2><small>'+aProd.length+' artigos · '+aLoc.length+' armazéns</small></div><div class="actions op-badge"><span class="status">👤 '+esc(currentOperator)+'</span><span class="status">'+(inv?"Inventário de "+d(inv.created_at):"Sem inventário")+'</span><button id="newInvBtn" class="primary">➕ Novo inventário</button><button id="logoutBtn" class="secondary">Sair</button></div></div>'+
+ '<div class="kpis"><div class="kpi">Artigos<b>'+aProd.length+'</b></div><div class="kpi">Armazéns<b>'+aLoc.length+'</b></div><div class="kpi">Inventários<b>'+inventories.length+'</b></div></div>'+
+ (aLoc.length?'<div class="cards">'+aLoc.map(l=>'<div class="card loc-card" data-loc="'+esc(l.id)+'"><h3>'+esc(l.name)+'</h3><p>'+aProd.length+' artigos</p><p class="muted">'+(inv?.status?esc(inv.status):"aberto")+'</p><div class="progress"><div id="bar-'+esc(l.id)+'" style="width:0%"></div></div><p><b id="count-'+esc(l.id)+'">0</b> contados</p></div>').join("")+'</div>':'<div class="panel empty">Sem armazéns ativos. Cria um em Artigos/Armazéns.</div>');
  bindNav();
  document.getElementById("logoutBtn")?.addEventListener("click",doLogout);
+ document.getElementById("newInvBtn")?.addEventListener("click",createNewInventory);
  document.querySelectorAll(".loc-card").forEach(x=>x.addEventListener("click",()=>openLocation(x.dataset.loc,inv?.id)));
  if(inv)loadProgress(inv.id);
+}
+
+async function createNewInventory(){
+ if(!confirm("Abrir um novo inventário? O inventário anterior continua disponível no histórico."))return;
+ try{
+  const r=await db.from("inventories").insert({status:"aberto"}).select();
+  if(r.error)throw r.error;
+  await loadBase();renderDashboard();
+ }catch(e){alert("Erro ao criar inventário: "+e.message)}
 }
 
 async function loadProgress(invId){
  const q=await db.from("counts").select("location_id,product_code").eq("inventory_id",invId);if(q.error)return;
  const m={};(q.data||[]).forEach(r=>{(m[String(r.location_id)]??=new Set()).add(String(r.product_code))});
- locations.forEach(l=>{let n=m[String(l.id)]?.size||0,p=products.length?Math.round(n/products.length*100):0;const c=document.getElementById("count-"+l.id),b=document.getElementById("bar-"+l.id);if(c)c.textContent=n;if(b)b.style.width=p+"%"})
+ const aProd=activeProducts();
+ activeLocations().forEach(l=>{let n=m[String(l.id)]?.size||0,p=aProd.length?Math.round(n/aProd.length*100):0;const c=document.getElementById("count-"+l.id),b=document.getElementById("bar-"+l.id);if(c)c.textContent=n;if(b)b.style.width=p+"%"})
 }
 
 async function openLocation(locId,invId){
@@ -135,14 +148,14 @@ async function loadCounts(){
 
 function renderLocation(){
  app.innerHTML=nav()+'<div class="topbar"><div><button id="back" class="secondary">← Armazéns</button><h2>'+esc(currentLocation.name)+'</h2><small>Inventário de '+d(currentInventory.created_at)+'</small></div><div class="actions"><button id="save" class="success">Guardar contagem</button><button id="closeInv" class="secondary">🔒 Fechar inventário</button></div></div><div class="panel"><input id="search" class="search" placeholder="Pesquisar por código ou artigo..."><div id="ptable"></div></div>';
- bindNav();document.getElementById("back").addEventListener("click",loadDashboard);document.getElementById("save").addEventListener("click",saveCounts);document.getElementById("closeInv").addEventListener("click",closeInventory);document.getElementById("search").addEventListener("input",filterProducts);renderProducts(products)
+ bindNav();document.getElementById("back").addEventListener("click",loadDashboard);document.getElementById("save").addEventListener("click",saveCounts);document.getElementById("closeInv").addEventListener("click",closeInventory);document.getElementById("search").addEventListener("input",filterProducts);renderProducts(activeProducts())
 }
 
 function renderProducts(list){
  document.getElementById("ptable").innerHTML='<table><thead><tr><th>Código</th><th>Artigo</th><th>Última contagem</th><th>Nova contagem</th></tr></thead><tbody>'+list.map(p=>{let k=String(p.code),c=currentCounts[k],l=lastCounts[k];return '<tr><td><b>'+esc(k)+'</b></td><td>'+esc(p.description)+'</td><td><b>'+(l===undefined?"—":fmt(l))+'</b></td><td><input class="quantity count-input" data-code="'+esc(k)+'" type="number" min="0" step="0.001" value="'+(c===undefined?"":c)+'"></td></tr>'}).join("")+'</tbody></table>';
  document.querySelectorAll(".count-input").forEach(i=>i.addEventListener("change",()=>{if(i.value==="")delete currentCounts[i.dataset.code];else currentCounts[i.dataset.code]=Number(i.value)}))
 }
-function filterProducts(){let s=document.getElementById("search").value.toLowerCase().trim();renderProducts(products.filter(p=>String(p.code).toLowerCase().includes(s)||String(p.description).toLowerCase().includes(s)))}
+function filterProducts(){let s=document.getElementById("search").value.toLowerCase().trim();renderProducts(activeProducts().filter(p=>String(p.code).toLowerCase().includes(s)||String(p.description).toLowerCase().includes(s)))}
 
 async function saveCounts(){
  if(currentInventory.status==="fechado"){alert("Este inventário está fechado e não pode ser alterado.");return;}
@@ -155,8 +168,18 @@ async function saveCounts(){
 async function closeInventory(){
  if(!currentInventory)return;
  if(currentInventory.status==="fechado"){alert("Este inventário já está fechado.");return;}
- if(!confirm("Fechar este inventário? Depois de fechado, as contagens deixam de poder ser alteradas."))return;
  try{
+  const q=await db.from("counts").select("location_id,product_code").eq("inventory_id",currentInventory.id);
+  if(q.error)throw q.error;
+  const counted={};(q.data||[]).forEach(r=>(counted[String(r.location_id)]??=new Set()).add(String(r.product_code)));
+  const aProd=activeProducts(),missing=[];
+  activeLocations().forEach(l=>{const s=counted[String(l.id)]||new Set();aProd.forEach(p=>{if(!s.has(String(p.code)))missing.push(l.name+" — "+p.code+" "+p.description)})});
+  if(missing.length){
+   const preview=missing.slice(0,15).join("\n")+(missing.length>15?"\n… e mais "+(missing.length-15):"");
+   if(!confirm("⚠️ Há "+missing.length+" artigo(s) por contar:\n\n"+preview+"\n\nFechar mesmo assim?"))return;
+  }else{
+   if(!confirm("Fechar este inventário? Depois de fechado, as contagens deixam de poder ser alteradas."))return;
+  }
   const r=await db.from("inventories").update({status:"fechado"}).eq("id",currentInventory.id);
   if(r.error)throw r.error;
   alert("Inventário fechado.");
@@ -297,6 +320,65 @@ async function showStock(){
 }
 function renderStock(rows){document.getElementById("stockTable").innerHTML='<table><thead><tr><th>Código</th><th>Artigo</th><th>Stock físico total</th></tr></thead><tbody>'+rows.map(r=>'<tr><td><b>'+esc(r.Codigo)+'</b></td><td>'+esc(r.Artigo)+'</td><td><b>'+fmt(r.Total)+'</b></td></tr>').join("")+'</tbody></table>'}
 function filterStock(){let s=document.getElementById("stockSearch").value.toLowerCase().trim();renderStock(reportRows.filter(r=>String(r.Codigo).toLowerCase().includes(s)||String(r.Artigo).toLowerCase().includes(s)))}
+
+async function showManage(){
+ loading("A carregar...");
+ try{await loadBase();renderManage()}catch(e){showError(e)}
+}
+
+function renderManage(){
+ app.innerHTML=nav()+'<div class="topbar"><div><h2>Artigos e Armazéns</h2><small>Adicionar, editar, ativar/desativar</small></div></div>'+
+ '<div class="cards" style="grid-template-columns:1fr 1fr">'+
+ '<div class="panel"><h3>Armazéns</h3>'+
+  '<div style="display:flex;gap:8px;margin-bottom:14px"><input id="newLocName" placeholder="Nome do novo armazém" style="flex:1;padding:11px;border:1px solid #ccd2d8;border-radius:8px"><button id="addLoc" class="primary">Adicionar</button></div>'+
+  '<div id="locList">'+locations.map(l=>'<div class="history"><span>'+esc(l.name)+(l.active===false?' <span class="muted">(inativo)</span>':'')+'</span><button class="secondary toggle-loc" data-id="'+esc(l.id)+'" data-active="'+(l.active!==false)+'">'+(l.active===false?"Ativar":"Desativar")+'</button></div>').join("")+'</div>'+
+ '</div>'+
+ '<div class="panel"><h3>Artigos</h3>'+
+  '<div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap"><input id="newProdCode" placeholder="Código" style="width:90px;padding:11px;border:1px solid #ccd2d8;border-radius:8px"><input id="newProdDesc" placeholder="Descrição" style="flex:1;min-width:150px;padding:11px;border:1px solid #ccd2d8;border-radius:8px"><input id="newProdUnit" placeholder="Unidade (ex: UNI)" style="width:110px;padding:11px;border:1px solid #ccd2d8;border-radius:8px"><button id="addProd" class="primary">Adicionar</button></div>'+
+  '<input id="prodSearch" class="search" placeholder="Pesquisar artigo...">'+
+  '<div id="prodList">'+renderProdListHtml(products)+'</div>'+
+ '</div></div>';
+ bindNav();
+ document.getElementById("addLoc").addEventListener("click",addLocation);
+ document.getElementById("addProd").addEventListener("click",addProduct);
+ document.getElementById("prodSearch").addEventListener("input",()=>{
+  const s=document.getElementById("prodSearch").value.toLowerCase().trim();
+  document.getElementById("prodList").innerHTML=renderProdListHtml(products.filter(p=>String(p.code).toLowerCase().includes(s)||String(p.description).toLowerCase().includes(s)));
+  bindToggles();
+ });
+ bindToggles();
+}
+
+function renderProdListHtml(list){
+ return list.map(p=>'<div class="history"><span><b>'+esc(p.code)+'</b> — '+esc(p.description)+(p.active===false?' <span class="muted">(inativo)</span>':'')+'</span><button class="secondary toggle-prod" data-id="'+esc(p.id)+'" data-active="'+(p.active!==false)+'">'+(p.active===false?"Ativar":"Desativar")+'</button></div>').join("");
+}
+
+function bindToggles(){
+ document.querySelectorAll(".toggle-loc").forEach(b=>b.addEventListener("click",()=>toggleActive("locations",b.dataset.id,b.dataset.active==="true")));
+ document.querySelectorAll(".toggle-prod").forEach(b=>b.addEventListener("click",()=>toggleActive("products",b.dataset.id,b.dataset.active==="true")));
+}
+
+async function toggleActive(table,id,isActive){
+ try{
+  const r=await db.from(table).update({active:!isActive}).eq("id",id);
+  if(r.error)throw r.error;
+  await loadBase();renderManage();
+ }catch(e){alert("Erro: "+e.message)}
+}
+
+async function addLocation(){
+ const name=document.getElementById("newLocName").value.trim();
+ if(!name)return;
+ try{const r=await db.from("locations").insert({name,active:true});if(r.error)throw r.error;await loadBase();renderManage()}
+ catch(e){alert("Erro ao adicionar armazém: "+e.message)}
+}
+
+async function addProduct(){
+ const code=document.getElementById("newProdCode").value.trim(),description=document.getElementById("newProdDesc").value.trim(),unit=document.getElementById("newProdUnit").value.trim();
+ if(!code||!description){alert("Código e descrição são obrigatórios.");return}
+ try{const r=await db.from("products").insert({code,description,unit,active:true});if(r.error)throw r.error;await loadBase();renderManage()}
+ catch(e){alert("Erro ao adicionar artigo: "+e.message)}
+}
 
 boot();
 </script>
