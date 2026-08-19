@@ -26,6 +26,8 @@ table{width:100%;border-collapse:collapse}th{background:#f1f3f5;text-align:left;
 .login-box select,.login-box input{width:100%;padding:13px;border:1px solid #ccd2d8;border-radius:8px;font-size:17px;margin-bottom:12px;text-align:center}
 .login-box button{width:100%;padding:13px;font-size:16px}
 .op-badge{display:flex;align-items:center;gap:8px}
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#17202a;color:#fff;padding:14px 22px;border-radius:10px;font-size:15px;max-width:90%;z-index:50;box-shadow:0 6px 20px rgba(0,0,0,.25)}
+.toast.error{background:#b42318}
 </style>
 </head>
 <body>
@@ -86,6 +88,12 @@ async function boot(){
 function nav(){return '<div class="nav"><button id="dashboard" class="secondary">🏠 Dashboard</button><button id="history" class="secondary">🕘 Histórico</button><button id="stock" class="secondary">📊 Stock</button><button id="compare" class="secondary">↔ Comparar</button><button id="manage" class="secondary">⚙️ Artigos/Armazéns</button></div>'}
 function bindNav(){document.getElementById("dashboard")?.addEventListener("click",loadDashboard);document.getElementById("history")?.addEventListener("click",showHistory);document.getElementById("stock")?.addEventListener("click",showStock);document.getElementById("compare")?.addEventListener("click",showCompare);document.getElementById("manage")?.addEventListener("click",showManage)}
 function loading(t){app.innerHTML='<div class="panel empty">'+esc(t)+'</div>'}
+function toast(msg,isError){
+ document.querySelectorAll(".toast").forEach(t=>t.remove());
+ const el=document.createElement("div");el.className="toast"+(isError?" error":"");el.textContent=msg;
+ document.body.appendChild(el);
+ setTimeout(()=>el.remove(),isError?6000:3500);
+}
 function showError(e){app.innerHTML=nav()+'<div class="error"><b>Erro:</b><br>'+esc(e?.message||e)+'</div>';bindNav()}
 
 async function loadBase(){
@@ -105,23 +113,27 @@ async function loadDashboard(){
 
 function renderDashboard(){
  const inv=inventories[0],aLoc=activeLocations(),aProd=activeProducts();
- app.innerHTML=nav()+'<div class="topbar"><div><h2>Inventário atual</h2><small>'+aProd.length+' artigos · '+aLoc.length+' armazéns</small></div><div class="actions op-badge"><span class="status">👤 '+esc(currentOperator)+'</span><span class="status">'+(inv?"Inventário de "+d(inv.created_at):"Sem inventário")+'</span><button id="newInvBtn" class="primary">➕ Novo inventário</button><button id="logoutBtn" class="secondary">Sair</button></div></div>'+
+ app.innerHTML=nav()+'<div class="topbar"><div><h2>Inventário atual</h2><small>'+aProd.length+' artigos · '+aLoc.length+' armazéns</small></div><div class="actions op-badge"><span class="status">👤 '+esc(currentOperator)+'</span><span class="status">'+(inv?(inv.name?esc(inv.name):"Inventário de "+d(inv.created_at))+(inv.status==="fechado"?" 🔒":""):"Sem inventário")+'</span>'+(inv&&inv.status==="fechado"?'<button id="reopenBtn" class="secondary">🔓 Reabrir</button>':'')+'<button id="newInvBtn" class="primary">➕ Novo inventário</button><button id="logoutBtn" class="secondary">Sair</button></div></div>'+
  '<div class="kpis"><div class="kpi">Artigos<b>'+aProd.length+'</b></div><div class="kpi">Armazéns<b>'+aLoc.length+'</b></div><div class="kpi">Inventários<b>'+inventories.length+'</b></div></div>'+
  (aLoc.length?'<div class="cards">'+aLoc.map(l=>'<div class="card loc-card" data-loc="'+esc(l.id)+'"><h3>'+esc(l.name)+'</h3><p>'+aProd.length+' artigos</p><p class="muted">'+(inv?.status?esc(inv.status):"aberto")+'</p><div class="progress"><div id="bar-'+esc(l.id)+'" style="width:0%"></div></div><p><b id="count-'+esc(l.id)+'">0</b> contados</p></div>').join("")+'</div>':'<div class="panel empty">Sem armazéns ativos. Cria um em Artigos/Armazéns.</div>');
  bindNav();
  document.getElementById("logoutBtn")?.addEventListener("click",doLogout);
  document.getElementById("newInvBtn")?.addEventListener("click",createNewInventory);
+ document.getElementById("reopenBtn")?.addEventListener("click",()=>reopenInventory(inv.id,"dashboard"));
  document.querySelectorAll(".loc-card").forEach(x=>x.addEventListener("click",()=>openLocation(x.dataset.loc,inv?.id)));
  if(inv)loadProgress(inv.id);
 }
 
 async function createNewInventory(){
- if(!confirm("Abrir um novo inventário? O inventário anterior continua disponível no histórico."))return;
+ const suggested=new Date().toLocaleDateString("pt-PT",{month:"long",year:"numeric"});
+ const label=suggested.charAt(0).toUpperCase()+suggested.slice(1);
+ const name=prompt("Nome do novo inventário:",label);
+ if(!name)return;
  try{
-  const r=await db.from("inventories").insert({status:"aberto"}).select();
+  const r=await db.from("inventories").insert({status:"aberto",name}).select();
   if(r.error)throw r.error;
-  await loadBase();renderDashboard();
- }catch(e){alert("Erro ao criar inventário: "+e.message)}
+  await loadBase();renderDashboard();toast("✅ Inventário \""+name+"\" criado.");
+ }catch(e){console.error(e);toast("Erro ao criar inventário: "+e.message,true)}
 }
 
 async function loadProgress(invId){
@@ -147,8 +159,9 @@ async function loadCounts(){
 }
 
 function renderLocation(){
- app.innerHTML=nav()+'<div class="topbar"><div><button id="back" class="secondary">← Armazéns</button><h2>'+esc(currentLocation.name)+'</h2><small>Inventário de '+d(currentInventory.created_at)+'</small></div><div class="actions"><button id="save" class="success">Guardar contagem</button><button id="closeInv" class="secondary">🔒 Fechar inventário</button></div></div><div class="panel"><input id="search" class="search" placeholder="Pesquisar por código ou artigo..."><div id="ptable"></div></div>';
- bindNav();document.getElementById("back").addEventListener("click",loadDashboard);document.getElementById("save").addEventListener("click",saveCounts);document.getElementById("closeInv").addEventListener("click",closeInventory);document.getElementById("search").addEventListener("input",filterProducts);renderProducts(activeProducts())
+ const closed=currentInventory.status==="fechado";
+ app.innerHTML=nav()+'<div class="topbar"><div><button id="back" class="secondary">← Armazéns</button><h2>'+esc(currentLocation.name)+'</h2><small>'+(currentInventory.name?esc(currentInventory.name):"Inventário de "+d(currentInventory.created_at))+(closed?' · <b>fechado</b>':'')+'</small></div><div class="actions">'+(closed?'<button id="closeInv" class="secondary">🔓 Reabrir inventário</button>':'<button id="save" class="success">Guardar contagem</button><button id="closeInv" class="secondary">🔒 Fechar inventário</button>')+'</div></div><div class="panel"><input id="search" class="search" placeholder="Pesquisar por código ou artigo..."><div id="ptable"></div></div>';
+ bindNav();document.getElementById("back").addEventListener("click",loadDashboard);document.getElementById("save")?.addEventListener("click",saveCounts);document.getElementById("closeInv").addEventListener("click",closed?()=>reopenInventory(currentInventory.id):closeInventory);document.getElementById("search").addEventListener("input",filterProducts);renderProducts(activeProducts())
 }
 
 function renderProducts(list){
@@ -158,16 +171,16 @@ function renderProducts(list){
 function filterProducts(){let s=document.getElementById("search").value.toLowerCase().trim();renderProducts(activeProducts().filter(p=>String(p.code).toLowerCase().includes(s)||String(p.description).toLowerCase().includes(s)))}
 
 async function saveCounts(){
- if(currentInventory.status==="fechado"){alert("Este inventário está fechado e não pode ser alterado.");return;}
+ if(currentInventory.status==="fechado"){alert("Este inventário está fechado e não pode ser alterado.");toast("Inventário fechado — não é possível alterar.",true);return;}
  const entries=Object.entries(currentCounts);if(!entries.length)return alert("Não introduziste nenhuma contagem.");
  if(!confirm("Guardar "+entries.length+" contagens no "+currentLocation.name+"?"))return;
- try{const rows=entries.map(([code,q])=>({inventory_id:currentInventory.id,location_id:currentLocation.id,product_code:Number(code),quantity:Number(q),counted_at:new Date().toISOString(),counted_by:currentOperator}));const r=await db.from("counts").upsert(rows,{onConflict:"inventory_id,location_id,product_code"});if(r.error)throw r.error;alert("Contagem guardada com sucesso.");await loadBase();openLocation(currentLocation.id,currentInventory.id)}catch(e){alert("Erro ao guardar: "+e.message)}
+ try{const rows=entries.map(([code,q])=>({inventory_id:currentInventory.id,location_id:currentLocation.id,product_code:Number(code),quantity:Number(q),counted_at:new Date().toISOString(),counted_by:currentOperator}));const r=await db.from("counts").upsert(rows,{onConflict:"inventory_id,location_id,product_code"});if(r.error)throw r.error;toast("✅ "+entries.length+" contagens guardadas.");await loadBase();openLocation(currentLocation.id,currentInventory.id)}catch(e){console.error(e);toast("Erro ao guardar: "+e.message,true)}
 }
 
 
 async function closeInventory(){
  if(!currentInventory)return;
- if(currentInventory.status==="fechado"){alert("Este inventário já está fechado.");return;}
+ if(currentInventory.status==="fechado"){toast("Este inventário já está fechado.",true);return;}
  try{
   const q=await db.from("counts").select("location_id,product_code").eq("inventory_id",currentInventory.id);
   if(q.error)throw q.error;
@@ -182,17 +195,35 @@ async function closeInventory(){
   }
   const r=await db.from("inventories").update({status:"fechado"}).eq("id",currentInventory.id);
   if(r.error)throw r.error;
-  alert("Inventário fechado.");
+  toast("🔒 Inventário fechado."+(missing.length?(" ("+missing.length+" artigo(s) ficaram por contar)"):""));
   await loadBase(); currentInventory=inventories.find(x=>String(x.id)===String(currentInventory.id)); renderLocation();
- }catch(e){alert("Não foi possível fechar: "+e.message)}
+ }catch(e){console.error(e);toast("Não foi possível fechar: "+e.message,true)}
 }
 
 async function showHistory(){
  loading("A carregar histórico...");
- try{await loadBase();app.innerHTML=nav()+'<div class="topbar"><div><h2>Histórico de inventários</h2><small>'+inventories.length+' inventário(s)</small></div></div><div class="panel">'+(inventories.length?inventories.map(i=>'<div class="history"><div><b>Inventário de '+d(i.created_at)+'</b><div class="muted">'+(i.status?('Estado: '+esc(i.status)+' · '):'')+'Criado em '+dt(i.created_at)+'</div></div><div class="actions"><button class="primary view-inv" data-id="'+esc(i.id)+'">Consultar / Editar</button><button class="success export-inv" data-id="'+esc(i.id)+'">Excel</button></div></div>').join(""):'<div class="empty">Não existem inventários.</div>')+'</div>';bindNav();
+ try{await loadBase();app.innerHTML=nav()+'<div class="topbar"><div><h2>Histórico de inventários</h2><small>'+inventories.length+' inventário(s)</small></div></div><div class="panel">'+(inventories.length?inventories.map(i=>'<div class="history"><div><b>'+(i.name?esc(i.name):"Inventário de "+d(i.created_at))+'</b><div class="muted">'+(i.status?('Estado: '+esc(i.status)+' · '):'')+'Criado em '+dt(i.created_at)+'</div></div><div class="actions"><button class="primary view-inv" data-id="'+esc(i.id)+'">Consultar / Editar</button><button class="success export-inv" data-id="'+esc(i.id)+'">Excel</button>'+(i.status==="fechado"?'<button class="secondary reopen-inv" data-id="'+esc(i.id)+'">🔓 Reabrir</button>':'')+'</div></div>').join(""):'<div class="empty">Não existem inventários.</div>')+'</div>';bindNav();
  document.querySelectorAll(".view-inv").forEach(b=>b.addEventListener("click",()=>viewInventory(b.dataset.id)));
- document.querySelectorAll(".export-inv").forEach(b=>b.addEventListener("click",()=>exportInventory(b.dataset.id)))
+ document.querySelectorAll(".export-inv").forEach(b=>b.addEventListener("click",()=>exportInventory(b.dataset.id)));
+ document.querySelectorAll(".reopen-inv").forEach(b=>b.addEventListener("click",()=>reopenInventory(b.dataset.id)))
  }catch(e){showError(e)}
+}
+
+async function reopenInventory(id,returnTo){
+ if(!confirm("Reabrir este inventário? Volta a permitir editar as contagens."))return;
+ try{
+  const r=await db.from("inventories").update({status:"aberto"}).eq("id",id);
+  if(r.error)throw r.error;
+  await loadBase();
+  toast("🔓 Inventário reaberto.");
+  if(returnTo==="dashboard"){renderDashboard();return}
+  if(currentLocation&&String(currentInventory?.id)===String(id)){
+   currentInventory=inventories.find(x=>String(x.id)===String(id));
+   renderLocation();
+  }else{
+   showHistory();
+  }
+ }catch(e){console.error(e);toast("Erro ao reabrir: "+e.message,true)}
 }
 
 function viewInventory(id){
