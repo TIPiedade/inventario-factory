@@ -462,11 +462,18 @@ function renderManage(){
 }
 
 function renderProdListHtml(list){
- return list.map(p=>'<div class="history"><span><b>'+esc(p.code)+'</b> — '+esc(p.description)+(p.barcode?' <span class="muted">· 🔖 '+esc(p.barcode)+'</span>':'')+(p.active===false?' <span class="muted">(inativo)</span>':'')+'</span><span style="display:flex;gap:8px;align-items:center"><span class="muted">€</span><input type="number" step="0.0001" min="0" class="quantity cost-input" style="width:90px" data-code="'+esc(p.code)+'" value="'+(p.cost_price??"")+'" placeholder="0.00"><button class="secondary toggle-prod" data-code="'+esc(p.code)+'" data-active="'+(p.active!==false)+'">'+(p.active===false?"Ativar":"Desativar")+'</button></span></div>').join("");
+ return list.map(p=>'<div class="history"><span><b>'+esc(p.code)+'</b> — '+esc(p.description)+(p.active===false?' <span class="muted">(inativo)</span>':'')+'</span><span style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><input type="text" class="quantity barcode-input" style="width:130px" data-code="'+esc(p.code)+'" value="'+esc(p.barcode||"")+'" placeholder="Cód. barras"><span class="muted">€</span><input type="number" step="0.0001" min="0" class="quantity cost-input" style="width:90px" data-code="'+esc(p.code)+'" value="'+(p.cost_price??"")+'" placeholder="0.00"><button class="secondary toggle-prod" data-code="'+esc(p.code)+'" data-active="'+(p.active!==false)+'">'+(p.active===false?"Ativar":"Desativar")+'</button></span></div>').join("");
 }
 
 function bindCostInputs(){
  document.querySelectorAll(".cost-input").forEach(i=>i.addEventListener("change",()=>updateCost(i.dataset.code,i.value)));
+ document.querySelectorAll(".barcode-input").forEach(i=>i.addEventListener("change",()=>updateBarcode(i.dataset.code,i.value)));
+}
+
+async function updateBarcode(code,value){
+ const barcode=value.trim()||null;
+ try{const r=await db.from("products").update({barcode}).eq("code",code);if(r.error)throw r.error;await loadBase();toast("🔖 Código de barras atualizado.")}
+ catch(e){console.error(e);toast("Erro ao atualizar código de barras: "+e.message,true)}
 }
 
 async function updateCost(code,value){
@@ -499,19 +506,18 @@ async function printLabels(){
  const list=activeProducts();
  if(!list.length){toast("Não há artigos ativos.",true);return}
  const w=window.open("","_blank");
- w.document.write('<html><head><title>Etiquetas · Ti\'Piedade</title><style>body{font-family:Arial,sans-serif;margin:0;padding:10px}.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.label{border:1px dashed #999;padding:8px;text-align:center;page-break-inside:avoid}.label canvas{max-width:100%}.label b{display:block;font-size:13px;margin-top:4px}.label small{color:#666;font-size:11px}@media print{.label{border:1px solid #ccc}}</style></head><body><div class="grid" id="grid"></div></body></html>');
- w.document.close();
- const grid=w.document.getElementById("grid");
- for(const p of list){
-  const cell=w.document.createElement("div");cell.className="label";
-  const canvas=w.document.createElement("canvas");
-  cell.appendChild(canvas);
-  const b=w.document.createElement("b");b.textContent=p.code;cell.appendChild(b);
-  const s=w.document.createElement("small");s.textContent=p.description;cell.appendChild(s);
-  grid.appendChild(cell);
-  await QRCode.toCanvas(canvas,String(p.code),{width:110,margin:1});
- }
- setTimeout(()=>w.print(),400);
+ if(!w){toast("O browser bloqueou a janela de impressão. Permite pop-ups para este site e tenta outra vez.",true);return}
+ w.document.write("<p style='font-family:Arial;padding:20px'>A gerar etiquetas...</p>");
+ try{
+  const cells=[];
+  for(const p of list){
+   const dataUrl=await QRCode.toDataURL(String(p.code),{width:130,margin:1});
+   cells.push('<div class="label"><img src="'+dataUrl+'" width="110" height="110"><b>'+esc(p.code)+'</b><small>'+esc(p.description)+'</small></div>');
+  }
+  const html='<html><head><title>Etiquetas · Ti\'Piedade</title><style>body{font-family:Arial,sans-serif;margin:0;padding:10px}.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.label{border:1px dashed #999;padding:8px;text-align:center;page-break-inside:avoid}.label img{max-width:100%}.label b{display:block;font-size:13px;margin-top:4px}.label small{color:#666;font-size:11px}@media print{.label{border:1px solid #ccc}}</style></head><body><div class="grid">'+cells.join("")+'</div></body></html>';
+  w.document.open();w.document.write(html);w.document.close();
+  setTimeout(()=>w.print(),400);
+ }catch(e){console.error(e);w.close();toast("Erro ao gerar etiquetas: "+e.message,true)}
 }
 
 async function addProduct(){
