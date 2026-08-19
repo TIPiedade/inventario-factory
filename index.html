@@ -507,14 +507,14 @@ async function printLabels(){
  if(!list.length){toast("Não há artigos ativos.",true);return}
  const w=window.open("","_blank");
  if(!w){toast("O browser bloqueou a janela de impressão. Permite pop-ups para este site e tenta outra vez.",true);return}
- w.document.write("<p style='font-family:Arial;padding:20px'>A gerar etiquetas...</p>");
+ w.document.write("<p style='font-family:Arial;padding:20px'>A gerar "+list.length+" etiquetas...</p>");
  try{
   const cells=[];
   for(const p of list){
-   const dataUrl=await QRCode.toDataURL(String(p.code),{width:130,margin:1});
-   cells.push('<div class="label"><img src="'+dataUrl+'" width="110" height="110"><b>'+esc(p.code)+'</b><small>'+esc(p.description)+'</small></div>');
+   const svg=await QRCode.toString(String(p.code),{type:"svg",width:110,margin:1});
+   cells.push('<div class="label">'+svg+'<b>'+esc(p.code)+'</b><small>'+esc(p.description)+'</small></div>');
   }
-  const html='<html><head><title>Etiquetas · Ti\'Piedade</title><style>body{font-family:Arial,sans-serif;margin:0;padding:10px}.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.label{border:1px dashed #999;padding:8px;text-align:center;page-break-inside:avoid}.label img{max-width:100%}.label b{display:block;font-size:13px;margin-top:4px}.label small{color:#666;font-size:11px}@media print{.label{border:1px solid #ccc}}</style></head><body><div class="grid">'+cells.join("")+'</div></body></html>';
+  const html='<html><head><title>Etiquetas · Ti\'Piedade</title><style>body{font-family:Arial,sans-serif;margin:0;padding:10px}.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.label{border:1px dashed #999;padding:8px;text-align:center;page-break-inside:avoid}.label svg{max-width:100%}.label b{display:block;font-size:13px;margin-top:4px}.label small{color:#666;font-size:11px}@media print{.label{border:1px solid #ccc}}</style></head><body><div class="grid">'+cells.join("")+'</div></body></html>';
   w.document.open();w.document.write(html);w.document.close();
   setTimeout(()=>w.print(),400);
  }catch(e){console.error(e);w.close();toast("Erro ao gerar etiquetas: "+e.message,true)}
