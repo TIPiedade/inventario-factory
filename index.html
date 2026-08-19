@@ -224,11 +224,27 @@ async function closeInventory(){
 
 async function showHistory(){
  loading("A carregar histórico...");
- try{await loadBase();app.innerHTML=nav()+'<div class="topbar"><div><h2>Histórico de inventários</h2><small>'+inventories.length+' inventário(s)</small></div></div><div class="panel">'+(inventories.length?inventories.map(i=>'<div class="history"><div><b>'+(i.name?esc(i.name):"Inventário de "+d(i.created_at))+'</b><div class="muted">'+(i.status?('Estado: '+esc(i.status)+' · '):'')+'Criado em '+dt(i.created_at)+'</div></div><div class="actions"><button class="primary view-inv" data-id="'+esc(i.id)+'">Consultar / Editar</button><button class="success export-inv" data-id="'+esc(i.id)+'">Excel</button>'+(i.status==="fechado"?'<button class="secondary reopen-inv" data-id="'+esc(i.id)+'">🔓 Reabrir</button>':'')+'</div></div>').join(""):'<div class="empty">Não existem inventários.</div>')+'</div>';bindNav();
+ try{await loadBase();app.innerHTML=nav()+'<div class="topbar"><div><h2>Histórico de inventários</h2><small>'+inventories.length+' inventário(s)</small></div></div><div class="panel">'+(inventories.length?inventories.map(i=>'<div class="history"><div><b>'+(i.name?esc(i.name):"Inventário de "+d(i.created_at))+'</b><div class="muted">'+(i.status?('Estado: '+esc(i.status)+' · '):'')+'Criado em '+dt(i.created_at)+'</div></div><div class="actions"><button class="primary view-inv" data-id="'+esc(i.id)+'">Consultar / Editar</button><button class="success export-inv" data-id="'+esc(i.id)+'">Excel</button>'+(i.status==="fechado"?'<button class="secondary reopen-inv" data-id="'+esc(i.id)+'">🔓 Reabrir</button>':'')+'<button class="secondary delete-inv" data-id="'+esc(i.id)+'" data-name="'+esc(i.name||("Inventário de "+d(i.created_at)))+'" style="background:var(--danger);color:#fff">🗑️ Eliminar</button>'+'</div></div>').join(""):'<div class="empty">Não existem inventários.</div>')+'</div>';bindNav();
  document.querySelectorAll(".view-inv").forEach(b=>b.addEventListener("click",()=>viewInventory(b.dataset.id)));
  document.querySelectorAll(".export-inv").forEach(b=>b.addEventListener("click",()=>exportInventory(b.dataset.id)));
  document.querySelectorAll(".reopen-inv").forEach(b=>b.addEventListener("click",()=>reopenInventory(b.dataset.id)))
+ document.querySelectorAll(".delete-inv").forEach(b=>b.addEventListener("click",()=>deleteInventory(b.dataset.id,b.dataset.name)))
  }catch(e){showError(e)}
+}
+
+async function deleteInventory(id,name){
+ if(!confirm("⚠️ Eliminar definitivamente \""+name+"\"?\n\nTodas as contagens deste inventário serão apagadas e NÃO podem ser recuperadas."))return;
+ const typed=prompt("Para confirmar, escreve o nome exato do inventário:\n\n\""+name+"\"");
+ if(typed===null)return;
+ if(typed.trim()!==name){toast("Nome não corresponde — eliminação cancelada.",true);return}
+ try{
+  const dc=await db.from("counts").delete().eq("inventory_id",id);
+  if(dc.error)throw dc.error;
+  const di=await db.from("inventories").delete().eq("id",id);
+  if(di.error)throw di.error;
+  toast("🗑️ Inventário eliminado.");
+  await loadBase();showHistory();
+ }catch(e){console.error(e);toast("Erro ao eliminar: "+e.message,true)}
 }
 
 async function reopenInventory(id,returnTo){
