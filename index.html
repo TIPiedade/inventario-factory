@@ -143,12 +143,14 @@ function renderDashboard(){
 }
 
 async function createNewInventory(){
- const suggested=new Date().toLocaleDateString("pt-PT",{month:"long",year:"numeric"});
+ const now=new Date();
+ const suggested=now.toLocaleDateString("pt-PT",{month:"long",year:"numeric"});
  const label=suggested.charAt(0).toUpperCase()+suggested.slice(1);
  const name=prompt("Nome do novo inventário:",label);
  if(!name)return;
+ const reference_month=now.getFullYear()+"-"+String(now.getMonth()+1).padStart(2,"0")+"-01";
  try{
-  const r=await db.from("inventories").insert({status:"aberto",name}).select();
+  const r=await db.from("inventories").insert({status:"aberto",name,reference_month}).select();
   if(r.error)throw r.error;
   await loadBase();renderDashboard();toast("✅ Inventário \""+name+"\" criado.");
  }catch(e){console.error(e);toast("Erro ao criar inventário: "+e.message,true)}
@@ -196,7 +198,7 @@ async function saveCounts(){
  if(currentInventory.status==="fechado"){alert("Este inventário está fechado e não pode ser alterado.");toast("Inventário fechado — não é possível alterar.",true);return;}
  const entries=Object.entries(currentCounts);if(!entries.length)return alert("Não introduziste nenhuma contagem.");
  if(!confirm("Guardar "+entries.length+" contagens no "+currentLocation.name+"?"))return;
- try{const rows=entries.map(([code,q])=>({inventory_id:currentInventory.id,location_id:currentLocation.id,product_code:Number(code),quantity:Number(q),counted_at:new Date().toISOString(),counted_by:currentOperatorId}));const r=await db.from("counts").upsert(rows,{onConflict:"inventory_id,location_id,product_code"});if(r.error)throw r.error;toast("✅ "+entries.length+" contagens guardadas.");await loadBase();openLocation(currentLocation.id,currentInventory.id)}catch(e){console.error(e);toast("Erro ao guardar: "+e.message,true)}
+ try{const rows=entries.map(([code,q])=>({inventory_id:currentInventory.id,location_id:currentLocation.id,product_code:String(code),quantity:Number(q),counted_at:new Date().toISOString(),counted_by:currentOperatorId}));const r=await db.from("counts").upsert(rows,{onConflict:"inventory_id,location_id,product_code"});if(r.error)throw r.error;toast("✅ "+entries.length+" contagens guardadas.");await loadBase();openLocation(currentLocation.id,currentInventory.id)}catch(e){console.error(e);toast("Erro ao guardar: "+e.message,true)}
 }
 
 
@@ -215,7 +217,7 @@ async function closeInventory(){
   }else{
    if(!confirm("Fechar este inventário? Depois de fechado, as contagens deixam de poder ser alteradas."))return;
   }
-  const r=await db.from("inventories").update({status:"fechado"}).eq("id",currentInventory.id);
+  const r=await db.from("inventories").update({status:"fechado",closed_at:new Date().toISOString()}).eq("id",currentInventory.id);
   if(r.error)throw r.error;
   toast("🔒 Inventário fechado."+(missing.length?(" ("+missing.length+" artigo(s) ficaram por contar)"):""));
   await loadBase(); currentInventory=inventories.find(x=>String(x.id)===String(currentInventory.id)); renderLocation();
@@ -250,7 +252,7 @@ async function deleteInventory(id,name){
 async function reopenInventory(id,returnTo){
  if(!confirm("Reabrir este inventário? Volta a permitir editar as contagens."))return;
  try{
-  const r=await db.from("inventories").update({status:"aberto"}).eq("id",id);
+  const r=await db.from("inventories").update({status:"aberto",closed_at:null}).eq("id",id);
   if(r.error)throw r.error;
   await loadBase();
   toast("🔓 Inventário reaberto.");
@@ -423,30 +425,30 @@ function renderManage(){
 }
 
 function renderProdListHtml(list){
- return list.map(p=>'<div class="history"><span><b>'+esc(p.code)+'</b> — '+esc(p.description)+(p.active===false?' <span class="muted">(inativo)</span>':'')+'</span><span style="display:flex;gap:8px;align-items:center"><span class="muted">€</span><input type="number" step="0.0001" min="0" class="quantity cost-input" style="width:90px" data-id="'+esc(p.id)+'" value="'+(p.cost_price??"")+'" placeholder="0.00"><button class="secondary toggle-prod" data-id="'+esc(p.id)+'" data-active="'+(p.active!==false)+'">'+(p.active===false?"Ativar":"Desativar")+'</button></span></div>').join("");
+ return list.map(p=>'<div class="history"><span><b>'+esc(p.code)+'</b> — '+esc(p.description)+(p.active===false?' <span class="muted">(inativo)</span>':'')+'</span><span style="display:flex;gap:8px;align-items:center"><span class="muted">€</span><input type="number" step="0.0001" min="0" class="quantity cost-input" style="width:90px" data-code="'+esc(p.code)+'" value="'+(p.cost_price??"")+'" placeholder="0.00"><button class="secondary toggle-prod" data-code="'+esc(p.code)+'" data-active="'+(p.active!==false)+'">'+(p.active===false?"Ativar":"Desativar")+'</button></span></div>').join("");
 }
 
 function bindCostInputs(){
- document.querySelectorAll(".cost-input").forEach(i=>i.addEventListener("change",()=>updateCost(i.dataset.id,i.value)));
+ document.querySelectorAll(".cost-input").forEach(i=>i.addEventListener("change",()=>updateCost(i.dataset.code,i.value)));
 }
 
-async function updateCost(id,value){
+async function updateCost(code,value){
  const cost_price=value===""?null:Number(value);
- try{const r=await db.from("products").update({cost_price}).eq("id",id);if(r.error)throw r.error;await loadBase();toast("💰 Custo atualizado.")}
+ try{const r=await db.from("products").update({cost_price}).eq("code",code);if(r.error)throw r.error;await loadBase();toast("💰 Custo atualizado.")}
  catch(e){console.error(e);toast("Erro ao atualizar custo: "+e.message,true)}
 }
 
 function bindToggles(){
- document.querySelectorAll(".toggle-loc").forEach(b=>b.addEventListener("click",()=>toggleActive("locations",b.dataset.id,b.dataset.active==="true")));
- document.querySelectorAll(".toggle-prod").forEach(b=>b.addEventListener("click",()=>toggleActive("products",b.dataset.id,b.dataset.active==="true")));
+ document.querySelectorAll(".toggle-loc").forEach(b=>b.addEventListener("click",()=>toggleActive("locations","id",b.dataset.id,b.dataset.active==="true")));
+ document.querySelectorAll(".toggle-prod").forEach(b=>b.addEventListener("click",()=>toggleActive("products","code",b.dataset.code,b.dataset.active==="true")));
 }
 
-async function toggleActive(table,id,isActive){
+async function toggleActive(table,keyCol,keyVal,isActive){
  try{
-  const r=await db.from(table).update({active:!isActive}).eq("id",id);
+  const r=await db.from(table).update({active:!isActive}).eq(keyCol,keyVal);
   if(r.error)throw r.error;
   await loadBase();renderManage();
- }catch(e){alert("Erro: "+e.message)}
+ }catch(e){console.error(e);toast("Erro: "+e.message,true)}
 }
 
 async function addLocation(){
