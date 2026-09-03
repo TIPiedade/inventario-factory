@@ -47,6 +47,12 @@ table{width:100%;border-collapse:collapse}th{background:var(--tan);color:var(--b
 .op-badge{display:flex;align-items:center;gap:8px}
 .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--brown-dark);color:#fff;padding:14px 22px;border-radius:10px;font-size:15px;max-width:90%;z-index:50;box-shadow:0 6px 20px rgba(0,0,0,.25)}
 .toast.error{background:var(--danger)}
+.mgmt-input{padding:7px 8px;border:1px solid var(--tan);border-radius:6px;font-size:13px}
+.prod-row{display:flex;gap:14px;align-items:center;padding:9px 0;border-top:1px solid var(--tan);flex-wrap:wrap}
+.prod-row:first-child{border-top:0}
+.prod-row .prod-info{display:flex;align-items:center;gap:8px;flex:1;min-width:200px;font-size:13px}
+.prod-row .prod-fields{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.prod-row button{padding:7px 10px;font-size:12px}
 .scan-modal{position:fixed;inset:0;background:rgba(51,37,33,.85);z-index:60;display:flex;align-items:center;justify-content:center;padding:16px}
 .scan-box{background:var(--cream-card);border-radius:14px;padding:18px;max-width:420px;width:100%;text-align:center}
 .scan-box h3{margin:0 0 10px;color:var(--brown)}
@@ -3096,32 +3102,64 @@ function renderManage(){
  '</div>'+
  '<div class="panel"><h3>Artigos</h3>'+
   '<div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap"><input id="newProdCode" placeholder="Código" style="width:80px;padding:11px;border:1px solid var(--tan);border-radius:8px"><input id="newProdDesc" placeholder="Descrição" style="flex:1;min-width:140px;padding:11px;border:1px solid var(--tan);border-radius:8px"><input id="newProdUnit" placeholder="Unidade" style="width:80px;padding:11px;border:1px solid var(--tan);border-radius:8px"><select id="newProdCategory" style="padding:11px;border:1px solid var(--tan);border-radius:8px"><option value="">Categoria...</option>'+CATEGORIES.map(c=>'<option>'+c+'</option>').join("")+'</select><input id="newProdCost" type="number" step="0.0001" min="0" placeholder="Custo €" style="width:90px;padding:11px;border:1px solid var(--tan);border-radius:8px"><input id="newProdBarcode" placeholder="Cód. barras (opcional)" style="width:150px;padding:11px;border:1px solid var(--tan);border-radius:8px"><button id="addProd" class="primary">Adicionar</button></div>'+
-  '<div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap"><input id="prodSearch" class="search" style="margin:0;flex:1" placeholder="Pesquisar artigo..."><select id="prodCategoryFilter" style="padding:11px;border:1px solid var(--tan);border-radius:8px"><option value="">Todas as categorias</option>'+CATEGORIES.map(c=>'<option>'+c+'</option>').join("")+'</select><button id="printLabels" class="secondary" style="white-space:nowrap">🏷️ Imprimir etiquetas QR</button></div>'+
+  '<div style="display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap"><input id="prodSearch" class="search" style="margin:0;flex:1" placeholder="Pesquisar artigo..."><select id="prodCategoryFilter" style="padding:11px;border:1px solid var(--tan);border-radius:8px"><option value="">Todas as categorias</option>'+CATEGORIES.map(c=>'<option>'+c+'</option>').join("")+'</select></div>'+
+  '<div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;align-items:center"><button id="selectAllProd" class="secondary" style="font-size:13px">Selecionar todos</button><button id="selectNoneProd" class="secondary" style="font-size:13px">Limpar seleção</button><span id="selCount" class="muted" style="font-size:13px">0 selecionados</span><button id="printLabels" class="primary" style="white-space:nowrap;margin-left:auto">🏷️ Imprimir etiquetas dos selecionados</button></div>'+
   '<div id="prodList">'+renderProdListHtml(products)+'</div>'+
  '</div></div>';
  bindNav();
  document.getElementById("addLoc").addEventListener("click",addLocation);
  document.getElementById("addProd").addEventListener("click",addProduct);
  document.getElementById("printLabels").addEventListener("click",printLabels);
- const applyFilter=()=>{
-  const s=document.getElementById("prodSearch").value.toLowerCase().trim();
-  const cat=document.getElementById("prodCategoryFilter").value;
-  document.getElementById("prodList").innerHTML=renderProdListHtml(products.filter(p=>(String(p.code).toLowerCase().includes(s)||String(p.description).toLowerCase().includes(s))&&(!cat||p.category===cat)));
-  bindToggles();bindCostInputs();
- };
+ document.getElementById("selectAllProd").addEventListener("click",()=>{visibleManageList().forEach(p=>labelSelection.add(String(p.code)));refreshProdList()});
+ document.getElementById("selectNoneProd").addEventListener("click",()=>{labelSelection.clear();refreshProdList()});
+ const applyFilter=()=>{refreshProdList()};
  document.getElementById("prodSearch").addEventListener("input",applyFilter);
  document.getElementById("prodCategoryFilter").addEventListener("change",applyFilter);
  bindToggles();bindCostInputs();
 }
 
+let labelSelection=new Set();
+
+function visibleManageList(){
+ const s=document.getElementById("prodSearch")?.value.toLowerCase().trim()||"";
+ const cat=document.getElementById("prodCategoryFilter")?.value||"";
+ return products.filter(p=>(String(p.code).toLowerCase().includes(s)||String(p.description).toLowerCase().includes(s))&&(!cat||p.category===cat));
+}
+
+function refreshProdList(){
+ document.getElementById("prodList").innerHTML=renderProdListHtml(visibleManageList());
+ document.getElementById("selCount").textContent=labelSelection.size+" selecionado(s)";
+ bindToggles();bindCostInputs();
+}
+
 function renderProdListHtml(list){
- return list.map(p=>'<div class="history"><span><b>'+esc(p.code)+'</b> — '+esc(p.description)+(p.active===false?' <span class="muted">(inativo)</span>':'')+'</span><span style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><select class="quantity category-input" style="width:140px" data-code="'+esc(p.code)+'"><option value="">Sem categoria</option>'+CATEGORIES.map(c=>'<option'+(p.category===c?' selected':'')+'>'+c+'</option>').join("")+'</select><input type="text" class="quantity barcode-input" style="width:130px" data-code="'+esc(p.code)+'" value="'+esc(p.barcode||"")+'" placeholder="Cód. barras"><span class="muted">€</span><input type="number" step="0.0001" min="0" class="quantity cost-input" style="width:90px" data-code="'+esc(p.code)+'" value="'+(p.cost_price??"")+'" placeholder="0.00"><button class="secondary toggle-prod" data-code="'+esc(p.code)+'" data-active="'+(p.active!==false)+'">'+(p.active===false?"Ativar":"Desativar")+'</button></span></div>').join("");
+ return list.map(p=>{
+  const k=esc(p.code);
+  return '<div class="prod-row"><label class="prod-info"><input type="checkbox" class="label-check" data-code="'+k+'"'+(labelSelection.has(String(p.code))?' checked':'')+'><span><b>'+k+'</b> — '+esc(p.description)+(p.active===false?' <span class="muted">(inativo)</span>':'')+'</span></label><div class="prod-fields">'+
+   '<select class="mgmt-input category-input" style="width:130px" data-code="'+k+'"><option value="">Sem categoria</option>'+CATEGORIES.map(c=>'<option'+(p.category===c?' selected':'')+'>'+c+'</option>').join("")+'</select>'+
+   '<input type="text" class="mgmt-input unit-input" style="width:64px" data-code="'+k+'" value="'+esc(p.unit||"")+'" placeholder="un.">'+
+   '<input type="text" class="mgmt-input barcode-input" style="width:120px" data-code="'+k+'" value="'+esc(p.barcode||"")+'" placeholder="Cód. barras">'+
+   '<span class="muted">€</span><input type="number" step="0.0001" min="0" class="mgmt-input cost-input" style="width:75px" data-code="'+k+'" value="'+(p.cost_price??"")+'" placeholder="0.00">'+
+   '<button class="secondary toggle-prod" data-code="'+k+'" data-active="'+(p.active!==false)+'">'+(p.active===false?"Ativar":"Desativar")+'</button>'+
+  '</div></div>';
+ }).join("");
 }
 
 function bindCostInputs(){
  document.querySelectorAll(".cost-input").forEach(i=>i.addEventListener("change",()=>updateCost(i.dataset.code,i.value)));
  document.querySelectorAll(".barcode-input").forEach(i=>i.addEventListener("change",()=>updateBarcode(i.dataset.code,i.value)));
  document.querySelectorAll(".category-input").forEach(i=>i.addEventListener("change",()=>updateCategory(i.dataset.code,i.value)));
+ document.querySelectorAll(".unit-input").forEach(i=>i.addEventListener("change",()=>updateUnit(i.dataset.code,i.value)));
+ document.querySelectorAll(".label-check").forEach(i=>i.addEventListener("change",()=>{
+  if(i.checked)labelSelection.add(i.dataset.code);else labelSelection.delete(i.dataset.code);
+  const el=document.getElementById("selCount");if(el)el.textContent=labelSelection.size+" selecionado(s)";
+ }));
+}
+
+async function updateUnit(code,value){
+ const unit=value.trim()||null;
+ try{const r=await db.from("products").update({unit}).eq("code",code);if(r.error)throw r.error;await loadBase();toast("📏 Unidade atualizada.")}
+ catch(e){console.error(e);toast("Erro ao atualizar unidade: "+e.message,true)}
 }
 
 async function updateCategory(code,value){
@@ -3163,7 +3201,8 @@ async function addLocation(){
 }
 
 async function printLabels(){
- const list=activeProducts();
+ if(!labelSelection.size){toast("Seleciona pelo menos um artigo (checkbox) antes de imprimir.",true);return}
+ const list=products.filter(p=>labelSelection.has(String(p.code)));
  if(!list.length){toast("Não há artigos ativos.",true);return}
  if(typeof qrcode==="undefined"){toast("A biblioteca de QR não carregou. Recarrega a página (Ctrl+Shift+R) e tenta outra vez.",true);return}
  const w=window.open("","_blank");
