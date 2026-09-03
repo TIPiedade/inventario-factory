@@ -2522,8 +2522,8 @@ async function loadCounts(){
 
 function renderLocation(){
  const closed=currentInventory.status==="fechado";
- app.innerHTML=nav()+'<div class="topbar"><div><button id="back" class="secondary">← Armazéns</button><h2>'+esc(currentLocation.name)+'</h2><small>'+(currentInventory.name?esc(currentInventory.name):"Inventário de "+d(currentInventory.created_at))+(closed?' · <b>fechado</b>':'')+'</small></div><div class="actions"><button id="printCat" class="secondary">🖨️ Resumo por categoria</button>'+(closed?'<button id="closeInv" class="secondary">🔓 Reabrir inventário</button>':'<button id="save" class="success">Guardar contagem</button><button id="closeInv" class="secondary">🔒 Fechar inventário</button>')+'</div></div><div class="panel"><div style="display:flex;gap:8px"><input id="search" class="search" style="margin:0" placeholder="Pesquisar por código ou artigo...">'+(closed?'':'<button id="scanBtn" class="primary" style="white-space:nowrap">📷 Ler código</button>')+'</div><div id="ptable"></div></div>';
- bindNav();document.getElementById("back").addEventListener("click",loadDashboard);document.getElementById("save")?.addEventListener("click",saveCounts);document.getElementById("closeInv").addEventListener("click",closed?()=>reopenInventory(currentInventory.id):closeInventory);document.getElementById("printCat").addEventListener("click",()=>printCategorySummary(currentInventory.id));document.getElementById("search").addEventListener("input",filterProducts);document.getElementById("scanBtn")?.addEventListener("click",openScanner);renderProducts(activeProducts())
+ app.innerHTML=nav()+'<div class="topbar"><div><button id="back" class="secondary">← Armazéns</button><h2>'+esc(currentLocation.name)+'</h2><small>'+(currentInventory.name?esc(currentInventory.name):"Inventário de "+d(currentInventory.created_at))+(closed?' · <b>fechado</b>':'')+'</small></div><div class="actions"><button id="printCat" class="secondary">🖨️ Resumo por categoria</button><button id="pdfCat" class="secondary">📄 PDF</button>'+(closed?'<button id="closeInv" class="secondary">🔓 Reabrir inventário</button>':'<button id="save" class="success">Guardar contagem</button><button id="closeInv" class="secondary">🔒 Fechar inventário</button>')+'</div></div><div class="panel"><div style="display:flex;gap:8px"><input id="search" class="search" style="margin:0" placeholder="Pesquisar por código ou artigo...">'+(closed?'':'<button id="scanBtn" class="primary" style="white-space:nowrap">📷 Ler código</button>')+'</div><div id="ptable"></div></div>';
+ bindNav();document.getElementById("back").addEventListener("click",loadDashboard);document.getElementById("save")?.addEventListener("click",saveCounts);document.getElementById("closeInv").addEventListener("click",closed?()=>reopenInventory(currentInventory.id):closeInventory);document.getElementById("printCat").addEventListener("click",()=>printCategorySummary(currentInventory.id));document.getElementById("pdfCat").addEventListener("click",()=>downloadCategorySummaryPdf(currentInventory.id));document.getElementById("search").addEventListener("input",filterProducts);document.getElementById("scanBtn")?.addEventListener("click",openScanner);renderProducts(activeProducts())
 }
 
 let scanner=null;
@@ -2601,16 +2601,38 @@ async function closeInventory(){
   }
   const r=await db.from("inventories").update({status:"fechado",closed_at:new Date().toISOString()}).eq("id",currentInventory.id);
   if(r.error)throw r.error;
+  sendCloseNotification(currentInventory,missing,anomalies);
   toast("🔒 Inventário fechado."+(missing.length?(" "+missing.length+" por contar."):"")+(anomalies.length?(" "+anomalies.length+" variação(ões) anómala(s)."):""));
   await loadBase(); currentInventory=inventories.find(x=>String(x.id)===String(currentInventory.id)); renderLocation();
  }catch(e){console.error(e);toast("Não foi possível fechar: "+e.message,true)}
 }
 
+async function sendCloseNotification(inv,missing,anomalies){
+ try{
+  const rows=await getRows(inv.id);
+  const catSummary=categoryTotals(rows);
+  const summary_html=catSummary.map(r=>'<tr'+(r.Categoria==="TOTAL GERAL"?' style="font-weight:bold;border-top:2px solid #332521"':'')+'><td style="padding:6px 12px">'+r.Categoria+'</td><td style="padding:6px 12px">'+fmtEur(r.ValorTotal)+'</td></tr>').join("");
+  const title=inv.name||("Inventário de "+d(inv.created_at));
+  const{data,error}=await db.functions.invoke("send-close-notification",{body:{
+   inventory_name:title,
+   closed_date:dt(new Date().toISOString()),
+   closed_by:currentOperator,
+   summary_html,
+   missing_count:missing.length,
+   anomaly_count:anomalies.length,
+   app_link:"https://tipiedade.github.io/inventario-factory/"
+  }});
+  if(error)throw error;
+  if(data?.error)throw new Error(data.error);
+ }catch(e){console.error("Erro ao enviar notificação por email:",e);toast("Inventário fechado, mas a notificação por email falhou.",true)}
+}
+
 async function showHistory(){
  loading("A carregar histórico...");
- try{await loadBase();app.innerHTML=nav()+'<div class="topbar"><div><h2>Histórico de inventários</h2><small>'+inventories.length+' inventário(s)</small></div></div><div class="panel">'+(inventories.length?inventories.map(i=>'<div class="history"><div><b>'+(i.name?esc(i.name):"Inventário de "+d(i.created_at))+'</b><div class="muted">'+(i.status?('Estado: '+esc(i.status)+' · '):'')+'Criado em '+dt(i.created_at)+'</div></div><div class="actions"><button class="primary view-inv" data-id="'+esc(i.id)+'">Consultar / Editar</button><button class="secondary print-cat-inv" data-id="'+esc(i.id)+'">🖨️ Resumo por categoria</button><button class="success export-inv" data-id="'+esc(i.id)+'">Excel</button>'+(i.status==="fechado"?'<button class="secondary reopen-inv" data-id="'+esc(i.id)+'">🔓 Reabrir</button>':'')+'<button class="secondary delete-inv" data-id="'+esc(i.id)+'" data-name="'+esc(i.name||("Inventário de "+d(i.created_at)))+'" style="background:var(--danger);color:#fff">🗑️ Eliminar</button>'+'</div></div>').join(""):'<div class="empty">Não existem inventários.</div>')+'</div>';bindNav();
+ try{await loadBase();app.innerHTML=nav()+'<div class="topbar"><div><h2>Histórico de inventários</h2><small>'+inventories.length+' inventário(s)</small></div></div><div class="panel">'+(inventories.length?inventories.map(i=>'<div class="history"><div><b>'+(i.name?esc(i.name):"Inventário de "+d(i.created_at))+'</b><div class="muted">'+(i.status?('Estado: '+esc(i.status)+' · '):'')+'Criado em '+dt(i.created_at)+'</div></div><div class="actions"><button class="primary view-inv" data-id="'+esc(i.id)+'">Consultar / Editar</button><button class="secondary print-cat-inv" data-id="'+esc(i.id)+'">🖨️ Resumo por categoria</button><button class="secondary pdf-cat-inv" data-id="'+esc(i.id)+'">📄 PDF</button><button class="success export-inv" data-id="'+esc(i.id)+'">Excel</button>'+(i.status==="fechado"?'<button class="secondary reopen-inv" data-id="'+esc(i.id)+'">🔓 Reabrir</button>':'')+'<button class="secondary delete-inv" data-id="'+esc(i.id)+'" data-name="'+esc(i.name||("Inventário de "+d(i.created_at)))+'" style="background:var(--danger);color:#fff">🗑️ Eliminar</button>'+'</div></div>').join(""):'<div class="empty">Não existem inventários.</div>')+'</div>';bindNav();
  document.querySelectorAll(".view-inv").forEach(b=>b.addEventListener("click",()=>viewInventory(b.dataset.id)));
  document.querySelectorAll(".print-cat-inv").forEach(b=>b.addEventListener("click",()=>printCategorySummary(b.dataset.id)));
+ document.querySelectorAll(".pdf-cat-inv").forEach(b=>b.addEventListener("click",()=>downloadCategorySummaryPdf(b.dataset.id)));
  document.querySelectorAll(".export-inv").forEach(b=>b.addEventListener("click",()=>exportInventory(b.dataset.id)));
  document.querySelectorAll(".reopen-inv").forEach(b=>b.addEventListener("click",()=>reopenInventory(b.dataset.id)))
  document.querySelectorAll(".delete-inv").forEach(b=>b.addEventListener("click",()=>deleteInventory(b.dataset.id,b.dataset.name)))
@@ -2689,6 +2711,74 @@ async function exportInventory(id){
   if(window.XLSX){const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(catSummary),"Resumo por Categoria");XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(resumo),"Resumo");XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(rows),"Contagens");XLSX.writeFile(wb,"Inventario_"+d(inv.created_at).replaceAll("/","-")+".xlsx")}
   else{csvDownload(resumo,"Inventario_"+d(inv.created_at).replaceAll("/","-")+".csv");alert("O Excel não carregou. Foi descarregado um CSV que abre diretamente no Excel.")}
  }catch(e){alert("Erro ao exportar: "+e.message)}
+}
+
+function pdfText(s){
+ let out="";
+ for(let i=0;i<s.length;i++){
+  const code=s.charCodeAt(i);
+  if(code===0x20AC){out+=String.fromCharCode(0x80)}// € in WinAnsiEncoding
+  else out+=String.fromCharCode(code<=255?code:63);
+ }
+ return out.replace(/\\/g,"\\\\").replace(/\(/g,"\\(").replace(/\)/g,"\\)");
+}
+
+function buildSimplePDF(lines){
+ // lines: array of {text,x,y,size,bold,color:[r,g,b]}
+ let stream="";
+ lines.forEach(l=>{
+  const font=l.bold?"/F2":"/F1";
+  const col=l.color||[0.2,0.15,0.13];
+  stream+=col.join(" ")+" rg\nBT\n"+font+" "+l.size+" Tf\n"+l.x+" "+l.y+" Td\n("+pdfText(l.text)+") Tj\nET\n";
+ });
+ const objects=[
+  "<< /Type /Catalog /Pages 2 0 R >>",
+  "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+  "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 4 0 R /F2 5 0 R >> >> /Contents 6 0 R >>",
+  "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>",
+  "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>",
+  "<< /Length "+stream.length+" >>\nstream\n"+stream+"endstream"
+ ];
+ let pdf="%PDF-1.4\n";
+ const offsets=[0];
+ objects.forEach((obj,i)=>{offsets.push(pdf.length);pdf+=(i+1)+" 0 obj\n"+obj+"\nendobj\n"});
+ const xrefStart=pdf.length;
+ pdf+="xref\n0 "+(objects.length+1)+"\n0000000000 65535 f \n";
+ for(let i=1;i<=objects.length;i++)pdf+=String(offsets[i]).padStart(10,"0")+" 00000 n \n";
+ pdf+="trailer\n<< /Size "+(objects.length+1)+" /Root 1 0 R >>\nstartxref\n"+xrefStart+"\n%%EOF";
+ const bytes=new Uint8Array(pdf.length);
+ for(let i=0;i<pdf.length;i++)bytes[i]=pdf.charCodeAt(i)&0xFF;
+ return new Blob([bytes],{type:"application/pdf"});
+}
+
+function downloadCategorySummaryPdf(id){
+ (async()=>{
+  try{
+   const inv=inventories.find(x=>String(x.id)===String(id));if(!inv)throw new Error("Inventário não encontrado.");
+   const rows=await getRows(id);if(!rows.length){toast("Este inventário ainda não tem contagens.",true);return}
+   const catSummary=categoryTotals(rows);
+   const title=inv.name||("Inventário de "+d(inv.created_at));
+   const lines=[
+    {text:"Ti'Piedade",x:50,y:790,size:11,color:[0.54,0.42,0.34]},
+    {text:"Resumo por Categoria",x:50,y:760,size:18,bold:true},
+    {text:title,x:50,y:740,size:11,color:[0.4,0.36,0.33]},
+    {text:"Categoria",x:50,y:695,size:11,bold:true},
+    {text:"Valor",x:420,y:695,size:11,bold:true}
+   ];
+   let y=670;
+   catSummary.forEach(r=>{
+    const isTotal=r.Categoria==="TOTAL GERAL";
+    lines.push({text:r.Categoria,x:50,y,size:isTotal?12:11,bold:isTotal});
+    lines.push({text:fmtEur(r.ValorTotal),x:420,y,size:isTotal?12:11,bold:isTotal});
+    y-=isTotal?32:26;
+   });
+   lines.push({text:"Gerado em "+dt(new Date().toISOString()),x:50,y:40,size:8,color:[0.6,0.55,0.5]});
+   const blob=buildSimplePDF(lines);
+   const url=URL.createObjectURL(blob);
+   const a=document.createElement("a");a.href=url;a.download="Resumo_Categoria_"+title.replace(/[^\w-]+/g,"_")+".pdf";document.body.appendChild(a);a.click();a.remove();
+   setTimeout(()=>URL.revokeObjectURL(url),3000);
+  }catch(e){console.error(e);toast("Erro ao gerar PDF: "+e.message,true)}
+ })();
 }
 
 async function printCategorySummary(id){
