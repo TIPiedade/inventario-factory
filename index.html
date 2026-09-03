@@ -45,7 +45,42 @@ table{width:100%;border-collapse:collapse}th{background:var(--tan);color:var(--b
 .quantity{width:110px;padding:11px;border:1px solid var(--brown-light);border-radius:7px;font-size:18px;text-align:right}.muted{color:var(--muted)}.empty{text-align:center;padding:40px;color:var(--muted)}
 .status{padding:8px 12px;border-radius:20px;background:var(--tan);color:var(--brown);font-size:13px}.error{background:#F7E4E1;color:var(--danger);padding:15px;border-radius:8px;margin-bottom:15px}
 .history{display:flex;justify-content:space-between;align-items:center;gap:15px;padding:16px;border-top:1px solid var(--tan)}.history:first-child{border-top:0}.actions{display:flex;gap:8px;flex-wrap:wrap}
-@media(max-width:700px){.container{padding:12px}.history{flex-direction:column;align-items:flex-start}th:nth-child(2),td:nth-child(2){display:none}}
+@media(max-width:700px){
+ .container{padding:10px}
+ header{padding:10px 14px}
+ header img{height:36px}
+ header .brand-text b{font-size:16px}
+ header .brand-text small{font-size:11px}
+ h2{font-size:17px}
+ h3{font-size:15px}
+ body{font-size:14px}
+ .nav{gap:6px}
+ .nav button{padding:8px 10px;font-size:12px}
+ button{padding:9px 12px;font-size:13px}
+ .topbar{gap:10px}
+ .topbar small{font-size:11px}
+ .kpis{grid-template-columns:repeat(2,1fr);gap:8px}
+ .kpi{padding:12px}
+ .kpi b{font-size:20px}
+ .card{padding:14px}
+ .card h3{font-size:15px}
+ .panel{padding:14px}
+ .search{padding:10px;font-size:14px}
+ table{font-size:12px}
+ th{padding:8px;font-size:11px}
+ td{padding:7px 8px}
+ .status{padding:5px 9px;font-size:11px}
+ .op-badge{gap:6px}
+ .op-badge .status{font-size:11px}
+ .history{flex-direction:column;align-items:flex-start;padding:10px 0}
+ .history:first-child{border-top:0}
+ th:nth-child(2),td:nth-child(2){display:none}
+ .prod-row{flex-direction:column;align-items:flex-start;gap:8px}
+ .prod-fields{width:100%}
+ .toast{font-size:13px;padding:11px 16px;bottom:12px}
+ .scan-box,.login-box{padding:18px;max-width:92vw}
+ .login-box img{height:48px}
+}
 .login-box{max-width:340px;margin:60px auto;background:var(--cream-card);border:1px solid var(--tan);border-radius:14px;padding:32px;text-align:center;box-shadow:0 10px 30px rgba(73,54,49,.08)}
 .login-box img{height:64px;margin-bottom:6px}
 .login-box h2{margin:6px 0 4px;color:var(--brown)}
@@ -64,6 +99,7 @@ table{width:100%;border-collapse:collapse}th{background:var(--tan);color:var(--b
 .scan-box{background:var(--cream-card);border-radius:14px;padding:18px;max-width:420px;width:100%;text-align:center}
 .scan-box h3{margin:0 0 10px;color:var(--brown)}
 #scanReader{border-radius:10px;overflow:hidden}
+#scanReader video,#scanReader canvas{max-width:100%!important;height:auto!important}
 </style>
 </head>
 <body>
@@ -2421,8 +2457,8 @@ async function boot(){
  loadDashboard();
 }
 
-function nav(){return '<div class="nav"><button id="dashboard" class="secondary">🏠 Dashboard</button><button id="history" class="secondary">🕘 Histórico</button><button id="stock" class="secondary">📊 Stock</button><button id="compare" class="secondary">↔ Comparar</button><button id="evolution" class="secondary">📈 Evolução</button><button id="manage" class="secondary">⚙️ Artigos/Armazéns</button></div>'}
-function bindNav(){document.getElementById("dashboard")?.addEventListener("click",loadDashboard);document.getElementById("history")?.addEventListener("click",showHistory);document.getElementById("stock")?.addEventListener("click",showStock);document.getElementById("compare")?.addEventListener("click",showCompare);document.getElementById("evolution")?.addEventListener("click",showEvolution);document.getElementById("manage")?.addEventListener("click",showManage)}
+function nav(){return '<div class="nav"><button id="dashboard" class="secondary">🏠 Dashboard</button><button id="history" class="secondary">🕘 Histórico</button><button id="stock" class="secondary">📊 Stock</button><button id="compare" class="secondary">↔ Comparar</button><button id="evolution" class="secondary">📈 Evolução</button><button id="audit" class="secondary">🕵️ Auditoria</button><button id="manage" class="secondary">⚙️ Artigos/Armazéns</button></div>'}
+function bindNav(){document.getElementById("dashboard")?.addEventListener("click",loadDashboard);document.getElementById("history")?.addEventListener("click",showHistory);document.getElementById("stock")?.addEventListener("click",showStock);document.getElementById("compare")?.addEventListener("click",showCompare);document.getElementById("evolution")?.addEventListener("click",showEvolution);document.getElementById("audit")?.addEventListener("click",showAudit);document.getElementById("manage")?.addEventListener("click",showManage)}
 function loading(t){app.innerHTML='<div class="panel empty">'+esc(t)+'</div>'}
 function toast(msg,isError){
  document.querySelectorAll(".toast").forEach(t=>t.remove());
@@ -3091,6 +3127,61 @@ async function loadProductEvolution(code){
    '<p class="muted" style="margin-top:-6px">Quantidade contada por inventário</p>'+sparklineSVG(qtyData,{fmt:v=>fmt(v)+" "+(prod?.unit||"")})+
    '<p class="muted" style="margin-top:14px">Valor (ao custo atual de '+fmtEur(custo)+'/un.)</p>'+sparklineSVG(valData,{fmt:fmtEur,color:"#5E7A54"});
  }catch(e){console.error(e);area.innerHTML='<p class="muted">Erro ao carregar evolução: '+esc(e.message)+'</p>'}
+}
+
+async function showAudit(){
+ loading("A carregar auditoria...");
+ try{
+  await loadBase();
+  const invId=inventories[0]?.id;
+  if(!invId){app.innerHTML=nav()+'<div class="panel empty">Ainda não existem inventários.</div>';bindNav();return}
+  app.innerHTML=nav()+'<div class="topbar"><div><h2>Auditoria</h2><small>Quem contou o quê e quando</small></div><div class="actions"><select id="auditInvSelect">'+inventories.map(i=>'<option value="'+esc(i.id)+'"'+(String(i.id)===String(invId)?' selected':'')+'>'+(i.name?esc(i.name):"Inventário de "+d(i.created_at))+'</option>').join("")+'</select></div></div><div id="auditContent"><p class="muted">A carregar...</p></div>';
+  bindNav();
+  document.getElementById("auditInvSelect").addEventListener("change",e=>renderAudit(e.target.value));
+  await renderAudit(invId);
+ }catch(e){showError(e)}
+}
+
+async function renderAudit(invId){
+ const el=document.getElementById("auditContent");
+ el.innerHTML='<p class="muted">A carregar...</p>';
+ try{
+  const[q,opq]=await Promise.all([
+   db.from("counts").select("location_id,product_code,quantity,counted_at,counted_by").eq("inventory_id",invId),
+   db.from("operator_profiles").select("*")
+  ]);
+  if(q.error)throw q.error;
+  const opMap=Object.fromEntries((opq.data||[]).map(o=>[o.user_id,o.name]));
+  const lm=Object.fromEntries(locations.map(l=>[String(l.id),l.name]));
+  const pm=Object.fromEntries(products.map(p=>[String(p.code),p.description]));
+  const rows=(q.data||[]).map(r=>({...r,operatorName:opMap[r.counted_by]||"Desconhecido"}));
+  rows.sort((a,b)=>new Date(b.counted_at)-new Date(a.counted_at));
+
+  const byOp={};
+  rows.forEach(r=>{
+   byOp[r.operatorName]??={count:0,first:r.counted_at,last:r.counted_at};
+   byOp[r.operatorName].count++;
+   if(new Date(r.counted_at)<new Date(byOp[r.operatorName].first))byOp[r.operatorName].first=r.counted_at;
+   if(new Date(r.counted_at)>new Date(byOp[r.operatorName].last))byOp[r.operatorName].last=r.counted_at;
+  });
+
+  const summaryHtml='<div class="cards">'+Object.entries(byOp).map(([name,s])=>'<div class="card" style="cursor:default"><h3>👤 '+esc(name)+'</h3><p><b>'+s.count+'</b> contagens</p><p class="muted">Última: '+dt(s.last)+'</p></div>').join("")+'</div>';
+
+  const detailHtml='<div class="panel" style="margin-top:16px"><input id="auditSearch" class="search" placeholder="Pesquisar por operador, armazém ou artigo..."><div id="auditTable"></div></div>';
+
+  el.innerHTML=(Object.keys(byOp).length?summaryHtml:'<div class="panel empty">Ainda não há contagens neste inventário.</div>')+detailHtml;
+
+  const renderTable=list=>{
+   document.getElementById("auditTable").innerHTML='<table><thead><tr><th>Data/Hora</th><th>Operador</th><th>Armazém</th><th>Artigo</th><th>Quantidade</th></tr></thead><tbody>'+
+    list.slice(0,300).map(r=>'<tr><td>'+dt(r.counted_at)+'</td><td>'+esc(r.operatorName)+'</td><td>'+esc(lm[String(r.location_id)]||"—")+'</td><td>'+esc(r.product_code)+' — '+esc(pm[String(r.product_code)]||"")+'</td><td>'+fmt(r.quantity)+'</td></tr>').join("")+
+    '</tbody></table>'+(list.length>300?'<p class="muted" style="padding:10px">A mostrar as 300 mais recentes de '+list.length+'.</p>':'');
+  };
+  renderTable(rows);
+  document.getElementById("auditSearch").addEventListener("input",()=>{
+   const s=document.getElementById("auditSearch").value.toLowerCase().trim();
+   renderTable(rows.filter(r=>r.operatorName.toLowerCase().includes(s)||(lm[String(r.location_id)]||"").toLowerCase().includes(s)||String(r.product_code).toLowerCase().includes(s)||(pm[String(r.product_code)]||"").toLowerCase().includes(s)));
+  });
+ }catch(e){console.error(e);el.innerHTML='<div class="error">Erro ao carregar auditoria: '+esc(e.message)+'</div>'}
 }
 
 async function showManage(){
