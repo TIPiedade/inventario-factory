@@ -2455,7 +2455,7 @@ function renderDashboard(){
  const inv=inventories[0],aLoc=activeLocations(),aProd=activeProducts();
  app.innerHTML=nav()+'<div class="topbar"><div><h2>Inventário atual</h2><small>'+aProd.length+' artigos · '+aLoc.length+' armazéns</small></div><div class="actions op-badge"><span class="status">👤 '+esc(currentOperator)+'</span><span class="status">'+(inv?(inv.name?esc(inv.name):"Inventário de "+d(inv.created_at))+(inv.status==="fechado"?" 🔒":""):"Sem inventário")+'</span>'+(inv&&inv.status==="fechado"?'<button id="reopenBtn" class="secondary">🔓 Reabrir</button>':'')+'<button id="newInvBtn" class="primary">➕ Novo inventário</button><button id="logoutBtn" class="secondary">Sair</button></div></div>'+
  '<div class="kpis"><div class="kpi">Artigos<b>'+aProd.length+'</b></div><div class="kpi">Armazéns<b>'+aLoc.length+'</b></div><div class="kpi">Inventários<b>'+inventories.length+'</b></div><div class="kpi">Valor de stock<b id="stockValue">—</b></div></div>'+
- (aLoc.length?'<div class="cards">'+aLoc.map(l=>'<div class="card loc-card" data-loc="'+esc(l.id)+'"><h3>'+esc(l.name)+'</h3><p>'+aProd.length+' artigos</p><p class="muted">'+(inv?.status?esc(inv.status):"aberto")+'</p><div class="progress"><div id="bar-'+esc(l.id)+'" style="width:0%"></div></div><p><b id="count-'+esc(l.id)+'">0</b> contados</p></div>').join("")+'</div>':'<div class="panel empty">Sem armazéns ativos. Cria um em Artigos/Armazéns.</div>')+
+ (aLoc.length?'<div class="cards">'+aLoc.map(l=>'<div class="card loc-card" data-loc="'+esc(l.id)+'"><h3>'+esc(l.name)+'</h3><p>'+aProd.length+' artigos</p><p id="locstatus-'+esc(l.id)+'" class="muted">A verificar...</p><div class="progress"><div id="bar-'+esc(l.id)+'" style="width:0%"></div></div><p><b id="count-'+esc(l.id)+'">0</b> contados</p></div>').join("")+'</div>':'<div class="panel empty">Sem armazéns ativos. Cria um em Artigos/Armazéns.</div>')+
  '<div class="panel" style="margin-top:16px"><h3>Valor de stock ao longo dos meses</h3><div id="stockChart"><p class="muted">A carregar...</p></div></div>';
  bindNav();
  document.getElementById("logoutBtn")?.addEventListener("click",doLogout);
@@ -2464,6 +2464,13 @@ function renderDashboard(){
  document.querySelectorAll(".loc-card").forEach(x=>x.addEventListener("click",()=>openLocation(x.dataset.loc,inv?.id)));
  if(inv)loadProgress(inv.id);
  loadStockValueHistory();
+}
+
+async function getLocationStatuses(invId){
+ const q=await db.from("inventory_locations").select("*").eq("inventory_id",invId);
+ if(q.error)throw q.error;
+ const map={};(q.data||[]).forEach(r=>map[String(r.location_id)]=r.status);
+ return map;
 }
 
 async function loadStockValueHistory(){
@@ -2502,14 +2509,41 @@ async function loadProgress(invId){
  const priceMap=Object.fromEntries(products.map(p=>[String(p.code),Number(p.cost_price)||0]));
  const value=(q.data||[]).reduce((s,r)=>s+Number(r.quantity||0)*(priceMap[String(r.product_code)]||0),0);
  const el=document.getElementById("stockValue");if(el)el.textContent=fmtEur(value);
+ try{
+  const statuses=await getLocationStatuses(invId);
+  activeLocations().forEach(l=>{
+   const st=statuses[String(l.id)]||"em_contagem";
+   const n=m[String(l.id)]?.size||0,p=aProd.length?Math.round(n/aProd.length*100):0;
+   const el2=document.getElementById("locstatus-"+l.id);
+   if(!el2)return;
+   if(st==="fechado"){el2.innerHTML='<span style="color:var(--success);font-weight:600">🔒 Fechado</span>'}
+   else if(p>=100&&aProd.length){el2.innerHTML='<span style="color:#8A796E;font-weight:600">✅ Completo — por fechar</span>'}
+   else{el2.innerHTML='<span style="color:#B8860B;font-weight:600">🟡 Em contagem</span>'}
+  });
+ }catch(e){console.error(e)}
 }
 function fmtEur(n){return Number(n||0).toLocaleString("pt-PT",{style:"currency",currency:"EUR"})}
+
+let currentLocationStatus="em_contagem";
+let extraProductCodes=new Set();
+
+function visibleProducts(){
+ const hasBaseline=Object.keys(lastCounts).length>0;
+ if(!hasBaseline)return activeProducts();
+ return activeProducts().filter(p=>lastCounts[String(p.code)]!==undefined||currentCounts[String(p.code)]!==undefined||extraProductCodes.has(String(p.code)));
+}
 
 async function openLocation(locId,invId){
  currentLocation=locations.find(x=>String(x.id)===String(locId));currentInventory=inventories.find(x=>String(x.id)===String(invId));
  if(!currentLocation||!currentInventory){alert("Armazém ou inventário não encontrado.");return}
  loading("A carregar "+currentLocation.name+"...");
- try{await loadCounts();renderLocation()}catch(e){showError(e)}
+ try{
+  extraProductCodes=new Set();
+  await loadCounts();
+  const statuses=await getLocationStatuses(currentInventory.id);
+  currentLocationStatus=statuses[String(currentLocation.id)]||"em_contagem";
+  renderLocation();
+ }catch(e){showError(e)}
 }
 
 async function loadCounts(){
@@ -2521,9 +2555,33 @@ async function loadCounts(){
 }
 
 function renderLocation(){
- const closed=currentInventory.status==="fechado";
- app.innerHTML=nav()+'<div class="topbar"><div><button id="back" class="secondary">← Armazéns</button><h2>'+esc(currentLocation.name)+'</h2><small>'+(currentInventory.name?esc(currentInventory.name):"Inventário de "+d(currentInventory.created_at))+(closed?' · <b>fechado</b>':'')+'</small></div><div class="actions"><button id="printCat" class="secondary">🖨️ Resumo por categoria</button><button id="pdfCat" class="secondary">📄 PDF</button>'+(closed?'<button id="closeInv" class="secondary">🔓 Reabrir inventário</button>':'<button id="save" class="success">Guardar contagem</button><button id="closeInv" class="secondary">🔒 Fechar inventário</button>')+'</div></div><div class="panel"><div style="display:flex;gap:8px"><input id="search" class="search" style="margin:0" placeholder="Pesquisar por código ou artigo...">'+(closed?'':'<button id="scanBtn" class="primary" style="white-space:nowrap">📷 Ler código</button>')+'</div><div id="ptable"></div></div>';
- bindNav();document.getElementById("back").addEventListener("click",loadDashboard);document.getElementById("save")?.addEventListener("click",saveCounts);document.getElementById("closeInv").addEventListener("click",closed?()=>reopenInventory(currentInventory.id):closeInventory);document.getElementById("printCat").addEventListener("click",()=>printCategorySummary(currentInventory.id));document.getElementById("pdfCat").addEventListener("click",()=>downloadCategorySummaryPdf(currentInventory.id));document.getElementById("search").addEventListener("input",filterProducts);document.getElementById("scanBtn")?.addEventListener("click",openScanner);renderProducts(activeProducts())
+ const invClosed=currentInventory.status==="fechado";
+ const locClosed=currentLocationStatus==="fechado";
+ const readOnly=invClosed||locClosed;
+ let statusTag="";
+ if(invClosed)statusTag=' · <b>inventário fechado</b>';
+ else if(locClosed)statusTag=' · <b style="color:var(--success)">🔒 armazém fechado</b>';
+ let rightButtons;
+ if(invClosed){
+  rightButtons='<button id="closeInv" class="secondary">🔓 Reabrir inventário</button>';
+ }else if(locClosed){
+  rightButtons='<button id="reopenLoc" class="secondary">🔓 Reabrir armazém</button><button id="closeInv" class="secondary">🔒 Fechar inventário</button>';
+ }else{
+  rightButtons='<button id="save" class="success">Guardar contagem</button><button id="closeLoc" class="secondary">🔒 Fechar armazém</button><button id="closeInv" class="secondary">🔒 Fechar inventário</button>';
+ }
+ app.innerHTML=nav()+'<div class="topbar"><div><button id="back" class="secondary">← Armazéns</button><h2>'+esc(currentLocation.name)+'</h2><small>'+(currentInventory.name?esc(currentInventory.name):"Inventário de "+d(currentInventory.created_at))+statusTag+'</small></div><div class="actions"><button id="printCat" class="secondary">🖨️ Resumo por categoria</button><button id="pdfCat" class="secondary">📄 PDF</button>'+rightButtons+'</div></div><div class="panel"><p class="muted" style="margin-top:0">A mostrar '+visibleProducts().length+' artigo(s) — os que tiveram quantidade neste armazém no inventário anterior'+(extraProductCodes.size?(' + '+extraProductCodes.size+' adicionado(s) manualmente'):'')+'.</p><div style="display:flex;gap:8px"><input id="search" class="search" style="margin:0" placeholder="Pesquisar por código ou artigo...">'+(readOnly?'':'<button id="addProdBtn" class="secondary" style="white-space:nowrap">➕ Adicionar artigo</button><button id="scanBtn" class="primary" style="white-space:nowrap">📷 Ler código</button>')+'</div><div id="ptable"></div></div>';
+ bindNav();
+ document.getElementById("back").addEventListener("click",loadDashboard);
+ document.getElementById("save")?.addEventListener("click",saveCounts);
+ document.getElementById("closeLoc")?.addEventListener("click",closeLocation);
+ document.getElementById("reopenLoc")?.addEventListener("click",reopenLocation);
+ document.getElementById("closeInv").addEventListener("click",invClosed?()=>reopenInventory(currentInventory.id):closeInventory);
+ document.getElementById("printCat").addEventListener("click",()=>printCategorySummary(currentInventory.id));
+ document.getElementById("pdfCat").addEventListener("click",()=>downloadCategorySummaryPdf(currentInventory.id));
+ document.getElementById("search").addEventListener("input",filterProducts);
+ document.getElementById("scanBtn")?.addEventListener("click",openScanner);
+ document.getElementById("addProdBtn")?.addEventListener("click",openAddProductPicker);
+ renderProducts(visibleProducts(),readOnly);
 }
 
 let scanner=null;
@@ -2549,6 +2607,7 @@ function onScanSuccess(text){
  const match=activeProducts().find(p=>String(p.code)===code||(p.barcode&&String(p.barcode)===code));
  closeScanner();
  if(!match){toast("Nenhum artigo encontrado para \""+code+"\".",true);return}
+ extraProductCodes.add(String(match.code));
  const s=document.getElementById("search");if(s){s.value=match.code;filterProducts()}
  setTimeout(()=>{
   const input=document.querySelector('.count-input[data-code="'+CSS.escape(String(match.code))+'"]');
@@ -2556,8 +2615,9 @@ function onScanSuccess(text){
  },50);
 }
 
-function renderProducts(list){
- document.getElementById("ptable").innerHTML='<table><thead><tr><th>Código</th><th>Artigo</th><th>Última contagem</th><th>Nova contagem</th></tr></thead><tbody>'+list.map(p=>{let k=String(p.code),c=currentCounts[k],l=lastCounts[k],unit=p.unit||"";return '<tr><td><b>'+esc(k)+'</b></td><td>'+esc(p.description)+'</td><td><b>'+(l===undefined?"—":fmt(l))+'</b></td><td><div style="display:flex;gap:6px;align-items:center"><input class="quantity count-input" data-code="'+esc(k)+'" data-unit="'+esc(unit)+'" type="number" min="0" step="0.001" value="'+(c===undefined?"":c)+'" style="width:90px">'+(unit?'<span class="muted">'+esc(unit)+'</span>':'')+'<button class="secondary add-qty" data-code="'+esc(k)+'" data-unit="'+esc(unit)+'" title="Somar mais uma quantidade (ex: outra palete)" style="padding:8px 12px">+</button></div></td></tr>'}).join("")+'</tbody></table>';
+function renderProducts(list,readOnly){
+ document.getElementById("ptable").innerHTML='<table><thead><tr><th>Código</th><th>Artigo</th><th>Última contagem</th><th>Nova contagem</th></tr></thead><tbody>'+list.map(p=>{let k=String(p.code),c=currentCounts[k],l=lastCounts[k],unit=p.unit||"";return '<tr><td><b>'+esc(k)+'</b></td><td>'+esc(p.description)+'</td><td><b>'+(l===undefined?"—":fmt(l))+'</b></td><td><div style="display:flex;gap:6px;align-items:center"><input class="quantity count-input" data-code="'+esc(k)+'" data-unit="'+esc(unit)+'" type="number" min="0" step="0.001" value="'+(c===undefined?"":c)+'" style="width:90px"'+(readOnly?" disabled":"")+'>'+(unit?'<span class="muted">'+esc(unit)+'</span>':'')+(readOnly?'':'<button class="secondary add-qty" data-code="'+esc(k)+'" data-unit="'+esc(unit)+'" title="Somar mais uma quantidade (ex: outra palete)" style="padding:8px 12px">+</button>')+'</div></td></tr>'}).join("")+'</tbody></table>';
+ if(readOnly)return;
  document.querySelectorAll(".count-input").forEach(i=>i.addEventListener("change",()=>{if(i.value==="")delete currentCounts[i.dataset.code];else currentCounts[i.dataset.code]=Number(i.value)}))
  document.querySelectorAll(".add-qty").forEach(b=>b.addEventListener("click",()=>{
   const code=b.dataset.code,unit=b.dataset.unit;
@@ -2573,7 +2633,28 @@ function renderProducts(list){
   toast("+"+n+(unit?" "+unit:"")+" → total "+novo+(unit?" "+unit:""));
  }))
 }
-function filterProducts(){let s=document.getElementById("search").value.toLowerCase().trim();renderProducts(activeProducts().filter(p=>String(p.code).toLowerCase().includes(s)||String(p.description).toLowerCase().includes(s)))}
+function filterProducts(){let s=document.getElementById("search").value.toLowerCase().trim();const closed=currentInventory.status==="fechado"||currentLocationStatus==="fechado";renderProducts(visibleProducts().filter(p=>String(p.code).toLowerCase().includes(s)||String(p.description).toLowerCase().includes(s)),closed)}
+
+function openAddProductPicker(){
+ const div=document.createElement("div");div.className="scan-modal";div.id="addProdModal";
+ div.innerHTML='<div class="scan-box" style="text-align:left;max-width:420px"><h3 style="text-align:center;margin-top:0">➕ Adicionar artigo a este armazém</h3><input id="addProdSearch" class="search" placeholder="Pesquisar por código ou nome..."><div id="addProdResults" style="max-height:320px;overflow:auto;margin-top:10px"></div><button id="addProdClose" class="secondary" style="width:100%;margin-top:12px">Fechar</button></div>';
+ document.body.appendChild(div);
+ const renderResults=s=>{
+  const visible=new Set(visibleProducts().map(p=>String(p.code)));
+  const list=activeProducts().filter(p=>!visible.has(String(p.code))).filter(p=>!s||String(p.code).toLowerCase().includes(s)||p.description.toLowerCase().includes(s));
+  document.getElementById("addProdResults").innerHTML=list.slice(0,40).map(p=>'<div class="history pick-add" data-code="'+esc(p.code)+'" style="cursor:pointer"><span><b>'+esc(p.code)+'</b> — '+esc(p.description)+'</span><span class="muted">➕</span></div>').join("")||'<p class="muted">Nenhum artigo encontrado (ou já está na lista).</p>';
+  document.querySelectorAll(".pick-add").forEach(x=>x.addEventListener("click",()=>{
+   extraProductCodes.add(x.dataset.code);
+   closeAddProductPicker();
+   renderLocation();
+   toast("✅ Artigo adicionado à contagem deste armazém.");
+  }));
+ };
+ renderResults("");
+ document.getElementById("addProdSearch").addEventListener("input",e=>renderResults(e.target.value.toLowerCase().trim()));
+ document.getElementById("addProdClose").addEventListener("click",closeAddProductPicker);
+}
+function closeAddProductPicker(){document.getElementById("addProdModal")?.remove()}
 
 async function saveCounts(){
  if(currentInventory.status==="fechado"){alert("Este inventário está fechado e não pode ser alterado.");toast("Inventário fechado — não é possível alterar.",true);return;}
@@ -2583,6 +2664,43 @@ async function saveCounts(){
 }
 
 
+async function closeLocation(){
+ if(!currentLocation||!currentInventory)return;
+ if(currentInventory.status==="fechado"){toast("O inventário já está fechado.",true);return}
+ try{
+  const q=await db.from("counts").select("product_code").eq("inventory_id",currentInventory.id).eq("location_id",currentLocation.id);
+  if(q.error)throw q.error;
+  const countedSet=new Set((q.data||[]).map(r=>String(r.product_code)));
+  const hasBaseline=Object.keys(lastCounts).length>0;
+  const expectedCodes=hasBaseline?Object.keys(lastCounts):activeProducts().map(p=>String(p.code));
+  const pm=Object.fromEntries(products.map(p=>[String(p.code),p]));
+  const missing=expectedCodes.filter(code=>!countedSet.has(code)).map(code=>code+" "+(pm[code]?.description||""));
+  if(missing.length){
+   const preview=missing.slice(0,12).join("\n")+(missing.length>12?"\n… e mais "+(missing.length-12):"");
+   if(!confirm("⚠️ "+missing.length+" artigo(s) por contar neste armazém"+(hasBaseline?" (face ao inventário anterior)":"")+":\n\n"+preview+"\n\nFechar mesmo assim?"))return;
+  }else{
+   if(!confirm("Fechar a contagem deste armazém?"))return;
+  }
+  const r=await db.from("inventory_locations").upsert({inventory_id:currentInventory.id,location_id:currentLocation.id,status:"fechado",closed_at:new Date().toISOString()},{onConflict:"inventory_id,location_id"});
+  if(r.error)throw r.error;
+  currentLocationStatus="fechado";
+  toast("🔒 "+currentLocation.name+" fechado.");
+  renderLocation();
+ }catch(e){console.error(e);toast("Erro ao fechar armazém: "+e.message,true)}
+}
+
+async function reopenLocation(){
+ if(!currentLocation||!currentInventory)return;
+ if(!confirm("Reabrir a contagem deste armazém?"))return;
+ try{
+  const r=await db.from("inventory_locations").upsert({inventory_id:currentInventory.id,location_id:currentLocation.id,status:"em_contagem",closed_at:null},{onConflict:"inventory_id,location_id"});
+  if(r.error)throw r.error;
+  currentLocationStatus="em_contagem";
+  toast("🔓 "+currentLocation.name+" reaberto.");
+  renderLocation();
+ }catch(e){console.error(e);toast("Erro ao reabrir armazém: "+e.message,true)}
+}
+
 async function closeInventory(){
  if(!currentInventory)return;
  if(currentInventory.status==="fechado"){toast("Este inventário já está fechado.",true);return;}
@@ -2590,12 +2708,28 @@ async function closeInventory(){
   const q=await db.from("counts").select("location_id,product_code").eq("inventory_id",currentInventory.id);
   if(q.error)throw q.error;
   const counted={};(q.data||[]).forEach(r=>(counted[String(r.location_id)]??=new Set()).add(String(r.product_code)));
-  const aProd=activeProducts(),missing=[];
-  activeLocations().forEach(l=>{const s=counted[String(l.id)]||new Set();aProd.forEach(p=>{if(!s.has(String(p.code)))missing.push(l.name+" — "+p.code+" "+p.description)})});
 
   const sorted=[...inventories].sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));
   const idx=sorted.findIndex(x=>String(x.id)===String(currentInventory.id));
   const prevInv=idx>=0&&idx<sorted.length-1?sorted[idx+1]:null;
+
+  let expectedByLoc={};
+  if(prevInv){
+   const pq=await db.from("counts").select("location_id,product_code").eq("inventory_id",prevInv.id);
+   if(pq.error)throw pq.error;
+   (pq.data||[]).forEach(r=>(expectedByLoc[String(r.location_id)]??=new Set()).add(String(r.product_code)));
+  }
+  const pm=Object.fromEntries(products.map(p=>[String(p.code),p]));
+  const missing=[];
+  activeLocations().forEach(l=>{
+   const s=counted[String(l.id)]||new Set();
+   const expected=expectedByLoc[String(l.id)]&&expectedByLoc[String(l.id)].size?expectedByLoc[String(l.id)]:new Set(activeProducts().map(p=>String(p.code)));
+   expected.forEach(code=>{if(!s.has(code))missing.push(l.name+" — "+code+" "+(pm[code]?.description||""))});
+  });
+
+  const locStatuses=await getLocationStatuses(currentInventory.id);
+  const openLocs=activeLocations().filter(l=>locStatuses[String(l.id)]!=="fechado").map(l=>l.name);
+
   let anomalies=[];
   if(prevInv){
    const cmp=await getComparisonRows(prevInv.id,currentInventory.id);
@@ -2605,6 +2739,7 @@ async function closeInventory(){
   }
 
   const parts=[];
+  if(openLocs.length)parts.push("🏭 "+openLocs.length+" armazém/ns ainda não fechado(s) individualmente: "+openLocs.join(", "));
   if(missing.length)parts.push("⚠️ "+missing.length+" artigo(s) por contar:\n"+missing.slice(0,10).join("\n")+(missing.length>10?"\n… e mais "+(missing.length-10):""));
   if(anomalies.length)parts.push("📈 "+anomalies.length+" artigo(s) com variação ≥"+ANOMALY_PCT+"% face ao inventário anterior:\n"+anomalies.slice(0,10).join("\n")+(anomalies.length>10?"\n… e mais "+(anomalies.length-10):""));
   if(parts.length){
