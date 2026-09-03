@@ -2557,8 +2557,21 @@ function onScanSuccess(text){
 }
 
 function renderProducts(list){
- document.getElementById("ptable").innerHTML='<table><thead><tr><th>Código</th><th>Artigo</th><th>Última contagem</th><th>Nova contagem</th></tr></thead><tbody>'+list.map(p=>{let k=String(p.code),c=currentCounts[k],l=lastCounts[k];return '<tr><td><b>'+esc(k)+'</b></td><td>'+esc(p.description)+'</td><td><b>'+(l===undefined?"—":fmt(l))+'</b></td><td><input class="quantity count-input" data-code="'+esc(k)+'" type="number" min="0" step="0.001" value="'+(c===undefined?"":c)+'"></td></tr>'}).join("")+'</tbody></table>';
+ document.getElementById("ptable").innerHTML='<table><thead><tr><th>Código</th><th>Artigo</th><th>Última contagem</th><th>Nova contagem</th></tr></thead><tbody>'+list.map(p=>{let k=String(p.code),c=currentCounts[k],l=lastCounts[k],unit=p.unit||"";return '<tr><td><b>'+esc(k)+'</b></td><td>'+esc(p.description)+'</td><td><b>'+(l===undefined?"—":fmt(l))+'</b></td><td><div style="display:flex;gap:6px;align-items:center"><input class="quantity count-input" data-code="'+esc(k)+'" data-unit="'+esc(unit)+'" type="number" min="0" step="0.001" value="'+(c===undefined?"":c)+'" style="width:90px">'+(unit?'<span class="muted">'+esc(unit)+'</span>':'')+'<button class="secondary add-qty" data-code="'+esc(k)+'" data-unit="'+esc(unit)+'" title="Somar mais uma quantidade (ex: outra palete)" style="padding:8px 12px">+</button></div></td></tr>'}).join("")+'</tbody></table>';
  document.querySelectorAll(".count-input").forEach(i=>i.addEventListener("change",()=>{if(i.value==="")delete currentCounts[i.dataset.code];else currentCounts[i.dataset.code]=Number(i.value)}))
+ document.querySelectorAll(".add-qty").forEach(b=>b.addEventListener("click",()=>{
+  const code=b.dataset.code,unit=b.dataset.unit;
+  const input=document.querySelector('.count-input[data-code="'+CSS.escape(code)+'"]');
+  const extra=prompt("Quantidade a somar"+(unit?" ("+unit+")":"")+":");
+  if(extra===null||extra.trim()==="")return;
+  const n=Number(extra);
+  if(isNaN(n)){toast("Valor inválido.",true);return}
+  const atual=Number(input.value)||0;
+  const novo=atual+n;
+  input.value=novo;
+  currentCounts[code]=novo;
+  toast("+"+n+(unit?" "+unit:"")+" → total "+novo+(unit?" "+unit:""));
+ }))
 }
 function filterProducts(){let s=document.getElementById("search").value.toLowerCase().trim();renderProducts(activeProducts().filter(p=>String(p.code).toLowerCase().includes(s)||String(p.description).toLowerCase().includes(s)))}
 
