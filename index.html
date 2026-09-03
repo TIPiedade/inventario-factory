@@ -89,6 +89,27 @@ table{width:100%;border-collapse:collapse}th{background:var(--tan);color:var(--b
 .op-badge{display:flex;align-items:center;gap:8px}
 .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--brown-dark);color:#fff;padding:14px 22px;border-radius:10px;font-size:15px;max-width:90%;z-index:50;box-shadow:0 6px 20px rgba(0,0,0,.25)}
 .toast.error{background:var(--danger)}
+
+@keyframes skel-pulse{0%{opacity:.55}50%{opacity:1}100%{opacity:.55}}
+.skel{background:var(--tan);border-radius:8px;animation:skel-pulse 1.3s ease-in-out infinite}
+.skeleton-wrap{padding:4px}
+.skel-title{width:220px;height:24px;margin-bottom:10px}
+.skel-sub{width:150px;height:14px;margin-bottom:22px}
+.skel-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:18px}
+.skel-kpi{height:74px;border-radius:12px}
+.skel-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px}
+.skel-card{height:120px;border-radius:12px}
+
+@keyframes screen-in{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+#app>*{animation:screen-in .28s ease both}
+
+@keyframes pop-check{0%{transform:scale(.6);opacity:0}60%{transform:scale(1.15);opacity:1}100%{transform:scale(1)}}
+.toast.success-pop{animation:pop-check .35s ease}
+
+.card,.loc-card{transition:transform .18s ease,box-shadow .18s ease}
+.card:active{transform:scale(.98)}
+button{transition:transform .12s ease,filter .15s ease,background .15s ease}
+button:active{transform:scale(.96)}
 .mgmt-input{padding:7px 8px;border:1px solid var(--tan);border-radius:6px;font-size:13px}
 .prod-row{display:flex;gap:14px;align-items:center;padding:9px 0;border-top:1px solid var(--tan);flex-wrap:wrap}
 .prod-row:first-child{border-top:0}
@@ -2457,12 +2478,24 @@ async function boot(){
  loadDashboard();
 }
 
-function nav(){return '<div class="nav"><button id="dashboard" class="secondary">🏠 Dashboard</button><button id="history" class="secondary">🕘 Histórico</button><button id="stock" class="secondary">📊 Stock</button><button id="compare" class="secondary">↔ Comparar</button><button id="evolution" class="secondary">📈 Evolução</button><button id="audit" class="secondary">🕵️ Auditoria</button><button id="manage" class="secondary">⚙️ Artigos/Armazéns</button></div>'}
+function icon(name){
+ const icons={
+  home:'<path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h5v-6h4v6h5V9.5"/>',
+  clock:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/>',
+  chart:'<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>',
+  swap:'<path d="M7 7h13l-4-4M17 17H4l4 4"/>',
+  trend:'<path d="M3 17l6-6 4 4 8-8"/><path d="M15 7h6v6"/>',
+  audit:'<circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/>',
+  gear:'<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/>'
+ };
+ return '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;margin-right:5px">'+(icons[name]||"")+'</svg>';
+}
+function nav(){return '<div class="nav"><button id="dashboard" class="secondary">'+icon("home")+'Dashboard</button><button id="history" class="secondary">'+icon("clock")+'Histórico</button><button id="stock" class="secondary">'+icon("chart")+'Stock</button><button id="compare" class="secondary">'+icon("swap")+'Comparar</button><button id="evolution" class="secondary">'+icon("trend")+'Evolução</button><button id="audit" class="secondary">'+icon("audit")+'Auditoria</button><button id="manage" class="secondary">'+icon("gear")+'Artigos/Armazéns</button></div>'}
 function bindNav(){document.getElementById("dashboard")?.addEventListener("click",loadDashboard);document.getElementById("history")?.addEventListener("click",showHistory);document.getElementById("stock")?.addEventListener("click",showStock);document.getElementById("compare")?.addEventListener("click",showCompare);document.getElementById("evolution")?.addEventListener("click",showEvolution);document.getElementById("audit")?.addEventListener("click",showAudit);document.getElementById("manage")?.addEventListener("click",showManage)}
-function loading(t){app.innerHTML='<div class="panel empty">'+esc(t)+'</div>'}
+function loading(t){app.innerHTML='<div class="skeleton-wrap"><div class="skel skel-title"></div><div class="skel skel-sub"></div><div class="skel-kpis">'+Array(4).fill('<div class="skel skel-kpi"></div>').join("")+'</div><div class="skel-cards">'+Array(4).fill('<div class="skel skel-card"></div>').join("")+'</div></div>'}
 function toast(msg,isError){
  document.querySelectorAll(".toast").forEach(t=>t.remove());
- const el=document.createElement("div");el.className="toast"+(isError?" error":"");el.textContent=msg;
+ const el=document.createElement("div");el.className="toast"+(isError?" error":" success-pop");el.textContent=msg;
  document.body.appendChild(el);
  setTimeout(()=>el.remove(),isError?6000:3500);
 }
@@ -2618,7 +2651,7 @@ function renderLocation(){
  }else{
   rightButtons='<button id="save" class="success">Guardar contagem</button><button id="closeLoc" class="secondary">🔒 Fechar armazém</button><button id="closeInv" class="secondary">🔒 Fechar inventário</button>';
  }
- app.innerHTML=nav()+'<div class="topbar"><div><button id="back" class="secondary">← Armazéns</button><h2>'+esc(currentLocation.name)+'</h2><small>'+(currentInventory.name?esc(currentInventory.name):"Inventário de "+d(currentInventory.created_at))+statusTag+'</small></div><div class="actions"><button id="printCat" class="secondary">🖨️ Resumo por categoria</button><button id="pdfCat" class="secondary">📄 PDF</button>'+rightButtons+'</div></div><div class="panel"><p class="muted" style="margin-top:0">A mostrar '+visibleProducts().length+' artigo(s) — os que tiveram quantidade neste armazém no inventário anterior'+(extraProductCodes.size?(' + '+extraProductCodes.size+' adicionado(s) manualmente'):'')+'.</p><div style="display:flex;gap:8px"><input id="search" class="search" style="margin:0" placeholder="Pesquisar por código ou artigo...">'+(readOnly?'':'<button id="addProdBtn" class="secondary" style="white-space:nowrap">➕ Adicionar artigo</button><button id="scanBtn" class="primary" style="white-space:nowrap">📷 Ler código</button>')+'</div><div id="ptable"></div></div>';
+ app.innerHTML=nav()+'<div class="topbar"><div><button id="back" class="secondary">← Armazéns</button><h2>'+esc(currentLocation.name)+'</h2><small>'+(currentInventory.name?esc(currentInventory.name):"Inventário de "+d(currentInventory.created_at))+statusTag+'</small></div><div class="actions"><button id="printCat" class="secondary">🖨️ Resumo por categoria</button><button id="pdfCat" class="secondary">📄 PDF</button><button id="waCat" class="secondary" style="background:#25D366;color:#fff">💬 WhatsApp</button>'+rightButtons+'</div></div><div class="panel"><p class="muted" style="margin-top:0">A mostrar '+visibleProducts().length+' artigo(s) — os que tiveram quantidade neste armazém no inventário anterior'+(extraProductCodes.size?(' + '+extraProductCodes.size+' adicionado(s) manualmente'):'')+'.</p><div style="display:flex;gap:8px"><input id="search" class="search" style="margin:0" placeholder="Pesquisar por código ou artigo...">'+(readOnly?'':'<button id="addProdBtn" class="secondary" style="white-space:nowrap">➕ Adicionar artigo</button><button id="scanBtn" class="primary" style="white-space:nowrap">📷 Ler código</button>')+'</div><div id="ptable"></div></div>';
  bindNav();
  document.getElementById("back").addEventListener("click",loadDashboard);
  document.getElementById("save")?.addEventListener("click",saveCounts);
@@ -2627,6 +2660,7 @@ function renderLocation(){
  document.getElementById("closeInv").addEventListener("click",invClosed?()=>reopenInventory(currentInventory.id):closeInventory);
  document.getElementById("printCat").addEventListener("click",()=>printCategorySummary(currentInventory.id));
  document.getElementById("pdfCat").addEventListener("click",()=>downloadCategorySummaryPdf(currentInventory.id));
+ document.getElementById("waCat").addEventListener("click",()=>shareCategorySummaryWhatsApp(currentInventory.id));
  document.getElementById("search").addEventListener("input",filterProducts);
  document.getElementById("scanBtn")?.addEventListener("click",openScanner);
  document.getElementById("addProdBtn")?.addEventListener("click",openAddProductPicker);
@@ -2664,8 +2698,10 @@ function onScanSuccess(text){
  },50);
 }
 
+const SpeechRec=window.SpeechRecognition||window.webkitSpeechRecognition;
+
 function renderProducts(list,readOnly){
- document.getElementById("ptable").innerHTML='<table><thead><tr><th>Código</th><th>Artigo</th><th>Última contagem</th><th>Nova contagem</th></tr></thead><tbody>'+list.map(p=>{let k=String(p.code),c=currentCounts[k],l=lastCounts[k],unit=p.unit||"";return '<tr><td><b>'+esc(k)+'</b></td><td>'+esc(p.description)+'</td><td><b>'+(l===undefined?"—":fmt(l))+'</b></td><td><div style="display:flex;gap:6px;align-items:center"><input class="quantity count-input" data-code="'+esc(k)+'" data-unit="'+esc(unit)+'" type="number" min="0" step="0.001" value="'+(c===undefined?"":c)+'" style="width:90px"'+(readOnly?" disabled":"")+'>'+(unit?'<span class="muted">'+esc(unit)+'</span>':'')+(readOnly?'':'<button class="secondary add-qty" data-code="'+esc(k)+'" data-unit="'+esc(unit)+'" title="Somar mais uma quantidade (ex: outra palete)" style="padding:8px 12px">+</button>')+'</div></td></tr>'}).join("")+'</tbody></table>';
+ document.getElementById("ptable").innerHTML='<table><thead><tr><th>Código</th><th>Artigo</th><th>Última contagem</th><th>Nova contagem</th></tr></thead><tbody>'+list.map(p=>{let k=String(p.code),c=currentCounts[k],l=lastCounts[k],unit=p.unit||"";return '<tr><td><b>'+esc(k)+'</b></td><td>'+esc(p.description)+'</td><td><b>'+(l===undefined?"—":fmt(l))+'</b></td><td><div style="display:flex;gap:6px;align-items:center"><input class="quantity count-input" data-code="'+esc(k)+'" data-unit="'+esc(unit)+'" type="number" min="0" step="0.001" value="'+(c===undefined?"":c)+'" style="width:90px"'+(readOnly?" disabled":"")+'>'+(unit?'<span class="muted">'+esc(unit)+'</span>':'')+(readOnly?'':'<button class="secondary add-qty" data-code="'+esc(k)+'" data-unit="'+esc(unit)+'" title="Somar mais uma quantidade (ex: outra palete)" style="padding:8px 12px">+</button><button class="secondary voice-qty" data-code="'+esc(k)+'" data-unit="'+esc(unit)+'" title="Ditar quantidade" style="padding:8px 10px">🎤</button>')+'</div></td></tr>'}).join("")+'</tbody></table>';
  if(readOnly)return;
  document.querySelectorAll(".count-input").forEach(i=>i.addEventListener("change",()=>{if(i.value==="")delete currentCounts[i.dataset.code];else currentCounts[i.dataset.code]=Number(i.value)}))
  document.querySelectorAll(".add-qty").forEach(b=>b.addEventListener("click",()=>{
@@ -2681,6 +2717,26 @@ function renderProducts(list,readOnly){
   currentCounts[code]=novo;
   toast("+"+n+(unit?" "+unit:"")+" → total "+novo+(unit?" "+unit:""));
  }))
+ document.querySelectorAll(".voice-qty").forEach(b=>b.addEventListener("click",()=>voiceInputQuantity(b.dataset.code,b.dataset.unit)))
+}
+
+function voiceInputQuantity(code,unit){
+ if(!SpeechRec){toast("O teu telemóvel não suporta ditado aqui — toca no campo e usa o microfone do teclado.",true);return}
+ const input=document.querySelector('.count-input[data-code="'+CSS.escape(code)+'"]');
+ const rec=new SpeechRec();
+ rec.lang="pt-PT";rec.interimResults=false;rec.maxAlternatives=1;
+ toast("🎤 A ouvir... diz a quantidade"+(unit?" ("+unit+")":""));
+ rec.onresult=e=>{
+  const transcript=e.results[0][0].transcript;
+  const cleaned=transcript.replace(",",".").replace(/[^0-9.]/g,"");
+  const n=parseFloat(cleaned);
+  if(isNaN(n)){toast("Não percebi \""+transcript+"\" — tenta escrever.",true);return}
+  input.value=n;
+  currentCounts[code]=n;
+  toast("✅ "+n+(unit?" "+unit:"")+" (ouvi: \""+transcript+"\")");
+ };
+ rec.onerror=e=>{if(e.error!=="aborted")toast("Erro no microfone: "+e.error,true)};
+ rec.start();
 }
 function filterProducts(){let s=document.getElementById("search").value.toLowerCase().trim();const closed=currentInventory.status==="fechado"||currentLocationStatus==="fechado";renderProducts(visibleProducts().filter(p=>String(p.code).toLowerCase().includes(s)||String(p.description).toLowerCase().includes(s)),closed)}
 
@@ -2826,10 +2882,11 @@ async function sendCloseNotification(inv,missing,anomalies){
 
 async function showHistory(){
  loading("A carregar histórico...");
- try{await loadBase();app.innerHTML=nav()+'<div class="topbar"><div><h2>Histórico de inventários</h2><small>'+inventories.length+' inventário(s)</small></div></div><div class="panel">'+(inventories.length?inventories.map(i=>'<div class="history"><div><b>'+(i.name?esc(i.name):"Inventário de "+d(i.created_at))+'</b><div class="muted">'+(i.status?('Estado: '+esc(i.status)+' · '):'')+'Criado em '+dt(i.created_at)+'</div></div><div class="actions"><button class="primary view-inv" data-id="'+esc(i.id)+'">Consultar / Editar</button><button class="secondary print-cat-inv" data-id="'+esc(i.id)+'">🖨️ Resumo por categoria</button><button class="secondary pdf-cat-inv" data-id="'+esc(i.id)+'">📄 PDF</button><button class="success export-inv" data-id="'+esc(i.id)+'">Excel</button>'+(i.status==="fechado"?'<button class="secondary reopen-inv" data-id="'+esc(i.id)+'">🔓 Reabrir</button>':'')+'<button class="secondary delete-inv" data-id="'+esc(i.id)+'" data-name="'+esc(i.name||("Inventário de "+d(i.created_at)))+'" style="background:var(--danger);color:#fff">🗑️ Eliminar</button>'+'</div></div>').join(""):'<div class="empty">Não existem inventários.</div>')+'</div>';bindNav();
+ try{await loadBase();app.innerHTML=nav()+'<div class="topbar"><div><h2>Histórico de inventários</h2><small>'+inventories.length+' inventário(s)</small></div></div><div class="panel">'+(inventories.length?inventories.map(i=>'<div class="history"><div><b>'+(i.name?esc(i.name):"Inventário de "+d(i.created_at))+'</b><div class="muted">'+(i.status?('Estado: '+esc(i.status)+' · '):'')+'Criado em '+dt(i.created_at)+'</div></div><div class="actions"><button class="primary view-inv" data-id="'+esc(i.id)+'">Consultar / Editar</button><button class="secondary print-cat-inv" data-id="'+esc(i.id)+'">🖨️ Resumo por categoria</button><button class="secondary pdf-cat-inv" data-id="'+esc(i.id)+'">📄 PDF</button><button class="secondary wa-cat-inv" data-id="'+esc(i.id)+'" style="background:#25D366;color:#fff">💬 WhatsApp</button><button class="success export-inv" data-id="'+esc(i.id)+'">Excel</button>'+(i.status==="fechado"?'<button class="secondary reopen-inv" data-id="'+esc(i.id)+'">🔓 Reabrir</button>':'')+'<button class="secondary delete-inv" data-id="'+esc(i.id)+'" data-name="'+esc(i.name||("Inventário de "+d(i.created_at)))+'" style="background:var(--danger);color:#fff">🗑️ Eliminar</button>'+'</div></div>').join(""):'<div class="empty">Não existem inventários.</div>')+'</div>';bindNav();
  document.querySelectorAll(".view-inv").forEach(b=>b.addEventListener("click",()=>viewInventory(b.dataset.id)));
  document.querySelectorAll(".print-cat-inv").forEach(b=>b.addEventListener("click",()=>printCategorySummary(b.dataset.id)));
  document.querySelectorAll(".pdf-cat-inv").forEach(b=>b.addEventListener("click",()=>downloadCategorySummaryPdf(b.dataset.id)));
+ document.querySelectorAll(".wa-cat-inv").forEach(b=>b.addEventListener("click",()=>shareCategorySummaryWhatsApp(b.dataset.id)));
  document.querySelectorAll(".export-inv").forEach(b=>b.addEventListener("click",()=>exportInventory(b.dataset.id)));
  document.querySelectorAll(".reopen-inv").forEach(b=>b.addEventListener("click",()=>reopenInventory(b.dataset.id)))
  document.querySelectorAll(".delete-inv").forEach(b=>b.addEventListener("click",()=>deleteInventory(b.dataset.id,b.dataset.name)))
@@ -2948,34 +3005,54 @@ function buildSimplePDF(lines){
  return new Blob([bytes],{type:"application/pdf"});
 }
 
+async function buildCategorySummaryPdfBlob(id){
+ const inv=inventories.find(x=>String(x.id)===String(id));if(!inv)throw new Error("Inventário não encontrado.");
+ const rows=await getRows(id);if(!rows.length)throw new Error("Este inventário ainda não tem contagens.");
+ const catSummary=categoryTotals(rows);
+ const title=inv.name||("Inventário de "+d(inv.created_at));
+ const lines=[
+  {text:"Ti'Piedade",x:50,y:790,size:11,color:[0.54,0.42,0.34]},
+  {text:"Resumo por Categoria",x:50,y:760,size:18,bold:true},
+  {text:title,x:50,y:740,size:11,color:[0.4,0.36,0.33]},
+  {text:"Categoria",x:50,y:695,size:11,bold:true},
+  {text:"Valor",x:420,y:695,size:11,bold:true}
+ ];
+ let y=670;
+ catSummary.forEach(r=>{
+  const isTotal=r.Categoria==="TOTAL GERAL";
+  lines.push({text:r.Categoria,x:50,y,size:isTotal?12:11,bold:isTotal});
+  lines.push({text:fmtEur(r.ValorTotal),x:420,y,size:isTotal?12:11,bold:isTotal});
+  y-=isTotal?32:26;
+ });
+ lines.push({text:"Gerado em "+dt(new Date().toISOString()),x:50,y:40,size:8,color:[0.6,0.55,0.5]});
+ return{blob:buildSimplePDF(lines),title,catSummary};
+}
+
 function downloadCategorySummaryPdf(id){
  (async()=>{
   try{
-   const inv=inventories.find(x=>String(x.id)===String(id));if(!inv)throw new Error("Inventário não encontrado.");
-   const rows=await getRows(id);if(!rows.length){toast("Este inventário ainda não tem contagens.",true);return}
-   const catSummary=categoryTotals(rows);
-   const title=inv.name||("Inventário de "+d(inv.created_at));
-   const lines=[
-    {text:"Ti'Piedade",x:50,y:790,size:11,color:[0.54,0.42,0.34]},
-    {text:"Resumo por Categoria",x:50,y:760,size:18,bold:true},
-    {text:title,x:50,y:740,size:11,color:[0.4,0.36,0.33]},
-    {text:"Categoria",x:50,y:695,size:11,bold:true},
-    {text:"Valor",x:420,y:695,size:11,bold:true}
-   ];
-   let y=670;
-   catSummary.forEach(r=>{
-    const isTotal=r.Categoria==="TOTAL GERAL";
-    lines.push({text:r.Categoria,x:50,y,size:isTotal?12:11,bold:isTotal});
-    lines.push({text:fmtEur(r.ValorTotal),x:420,y,size:isTotal?12:11,bold:isTotal});
-    y-=isTotal?32:26;
-   });
-   lines.push({text:"Gerado em "+dt(new Date().toISOString()),x:50,y:40,size:8,color:[0.6,0.55,0.5]});
-   const blob=buildSimplePDF(lines);
+   const{blob,title}=await buildCategorySummaryPdfBlob(id);
    const url=URL.createObjectURL(blob);
    const a=document.createElement("a");a.href=url;a.download="Resumo_Categoria_"+title.replace(/[^\w-]+/g,"_")+".pdf";document.body.appendChild(a);a.click();a.remove();
    setTimeout(()=>URL.revokeObjectURL(url),3000);
   }catch(e){console.error(e);toast("Erro ao gerar PDF: "+e.message,true)}
  })();
+}
+
+async function shareCategorySummaryWhatsApp(id){
+ try{
+  const{blob,title,catSummary}=await buildCategorySummaryPdfBlob(id);
+  const text="📦 *Resumo por Categoria — "+title+"*\n\n"+catSummary.map(r=>r.Categoria+": "+fmtEur(r.ValorTotal)).join("\n");
+  const fileName="Resumo_Categoria_"+title.replace(/[^\w-]+/g,"_")+".pdf";
+  const file=new File([blob],fileName,{type:"application/pdf"});
+  if(navigator.canShare&&navigator.canShare({files:[file]})){
+   try{await navigator.share({files:[file],title:"Resumo — "+title,text});return}catch(e){if(e.name==="AbortError")return}
+  }
+  if(navigator.share){
+   try{await navigator.share({title:"Resumo — "+title,text});return}catch(e){if(e.name==="AbortError")return}
+  }
+  window.open("https://wa.me/?text="+encodeURIComponent(text),"_blank");
+ }catch(e){console.error(e);toast("Erro ao partilhar: "+e.message,true)}
 }
 
 async function printCategorySummary(id){
