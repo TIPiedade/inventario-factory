@@ -2955,9 +2955,18 @@ async function sendCloseNotification(inv,missing,anomalies){
    anomaly_count:anomalies.length,
    app_link:"https://tipiedade.github.io/inventario-factory/"
   }});
-  if(error)throw error;
+  if(error){
+   let detail=error.message;
+   try{
+    if(error.context&&typeof error.context.json==="function"){
+     const body=await error.context.json();
+     if(body?.error)detail=body.error;
+    }
+   }catch(_e){}
+   throw new Error(detail);
+  }
   if(data?.error)throw new Error(data.error);
- }catch(e){console.error("Erro ao enviar notificação por email:",e);toast("Inventário fechado, mas a notificação por email falhou.",true)}
+ }catch(e){console.error("Erro ao enviar notificação por email:",e);toast("Inventário fechado, mas a notificação por email falhou: "+e.message,true)}
 }
 
 async function showHistory(){
@@ -3451,7 +3460,16 @@ async function sendAssistantQuestion(){
  renderAssistantHistoryOnly();
  try{
   const{data,error}=await db.functions.invoke("ask-inventory",{body:{question}});
-  if(error)throw error;
+  if(error){
+   let detail=error.message;
+   try{
+    if(error.context&&typeof error.context.json==="function"){
+     const body=await error.context.json();
+     if(body?.error)detail=body.error;
+    }
+   }catch(_e){}
+   throw new Error(detail);
+  }
   if(data?.error)throw new Error(data.error);
   assistantHistory[assistantHistory.length-1]={role:"assistant",text:data.answer};
  }catch(e){
