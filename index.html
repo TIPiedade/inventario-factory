@@ -2940,12 +2940,26 @@ async function closeInventory(){
  }catch(e){console.error(e);toast("Não foi possível fechar: "+e.message,true)}
 }
 
+async function blobToBase64(blob){
+ const buf=await blob.arrayBuffer();
+ const bytes=new Uint8Array(buf);
+ let binary="";
+ for(let i=0;i<bytes.length;i++)binary+=String.fromCharCode(bytes[i]);
+ return btoa(binary);
+}
+
 async function sendCloseNotification(inv,missing,anomalies){
  try{
-  const rows=await getRows(inv.id);
-  const catSummary=categoryTotals(rows);
+  const{blob,title,catSummary}=await buildCategoryReportPdfBlob(inv.id);
   const summary_html=catSummary.map(r=>'<tr'+(r.Categoria==="TOTAL GERAL"?' style="font-weight:bold;border-top:2px solid #332521"':'')+'><td style="padding:6px 12px">'+r.Categoria+'</td><td style="padding:6px 12px">'+fmtEur(r.ValorTotal)+'</td></tr>').join("");
-  const title=inv.name||("Inventário de "+d(inv.created_at));
+  const pdf_filename="Relatorio_Inventario_"+title.replace(/[^\w-]+/g,"_")+".pdf";
+  const pdf_base64=await blobToBase64(blob);
+  let excel_base64=null,excel_filename=null;
+  try{
+   const xlsx=await buildInventoryExcelBlob(inv.id);
+   excel_base64=await blobToBase64(xlsx.blob);
+   excel_filename=xlsx.filename;
+  }catch(e){console.warn("Não foi possível anexar o Excel:",e)}
   const{data,error}=await db.functions.invoke("send-close-notification",{body:{
    inventory_name:title,
    closed_date:dt(new Date().toISOString()),
@@ -2953,7 +2967,11 @@ async function sendCloseNotification(inv,missing,anomalies){
    summary_html,
    missing_count:missing.length,
    anomaly_count:anomalies.length,
-   app_link:"https://tipiedade.github.io/inventario-factory/"
+   app_link:"https://tipiedade.github.io/inventario-factory/",
+   pdf_base64,
+   pdf_filename,
+   excel_base64,
+   excel_filename
   }});
   if(error){
    let detail=error.message;
@@ -3042,19 +3060,44 @@ function csvDownload(rows,name){
  const blob=new Blob(["\uFEFF"+text],{type:"text/csv;charset=utf-8"}),u=URL.createObjectURL(blob),a=document.createElement("a");a.href=u;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(u),1000)
 }
 
+async function buildInventoryExcelBlob(id){
+ const inv=inventories.find(x=>String(x.id)===String(id));if(!inv)throw new Error("Inventário não encontrado.");
+ const rows=await getRows(id);if(!rows.length)throw new Error("Este inventário ainda não tem contagens.");
+ const catSummary=categoryTotals(rows);
+ const map={};rows.forEach(r=>{let k=String(r.Codigo);map[k]??={Codigo:r.Codigo,Artigo:r.Artigo,Categoria:r.Categoria,Unidade:r.Unidade,CustoUnit:r.CustoUnit};map[k][r.Armazem]=r.Quantidade});
+ Object.values(map).forEach(r=>{locations.forEach(l=>{if(r[l.name]===undefined)r[l.name]=0});r.Total=locations.reduce((s,l)=>s+Number(r[l.name]||0),0);r.ValorTotal=r.Total*r.CustoUnit});
+ const resumo=Object.values(map);
+ const valorGlobal=resumo.reduce((s,r)=>s+r.ValorTotal,0);
+ resumo.push({Codigo:"",Artigo:"TOTAL GERAL",ValorTotal:valorGlobal});
+ const title=inv.name||("Inventario_"+d(inv.created_at).replaceAll("/","-"));
+ const filename="Inventario_"+title.replace(/[^\w-]+/g,"_")+".xlsx";
+ if(!window.XLSX)throw new Error("A biblioteca de Excel não carregou.");
+ const wb=XLSX.utils.book_new();
+ XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(catSummary),"Resumo por Categoria");
+ XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(resumo),"Resumo");
+ XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(rows),"Contagens");
+ const wbArray=XLSX.write(wb,{bookType:"xlsx",type:"array"});
+ const blob=new Blob([wbArray],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"});
+ return{blob,filename,title};
+}
+
 async function exportInventory(id){
  try{
-  const inv=inventories.find(x=>String(x.id)===String(id));if(!inv)throw new Error("Inventário não encontrado.");
-  const rows=await getRows(id);if(!rows.length)return alert("Este inventário ainda não tem contagens.");
-  const catSummary=categoryTotals(rows);
-  const map={};rows.forEach(r=>{let k=String(r.Codigo);map[k]??={Codigo:r.Codigo,Artigo:r.Artigo,Categoria:r.Categoria,Unidade:r.Unidade,CustoUnit:r.CustoUnit};map[k][r.Armazem]=r.Quantidade});
-  Object.values(map).forEach(r=>{locations.forEach(l=>{if(r[l.name]===undefined)r[l.name]=0});r.Total=locations.reduce((s,l)=>s+Number(r[l.name]||0),0);r.ValorTotal=r.Total*r.CustoUnit});
-  const resumo=Object.values(map);
-  const valorGlobal=resumo.reduce((s,r)=>s+r.ValorTotal,0);
-  resumo.push({Codigo:"",Artigo:"TOTAL GERAL",ValorTotal:valorGlobal});
-  if(window.XLSX){const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(catSummary),"Resumo por Categoria");XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(resumo),"Resumo");XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(rows),"Contagens");XLSX.writeFile(wb,"Inventario_"+d(inv.created_at).replaceAll("/","-")+".xlsx")}
-  else{csvDownload(resumo,"Inventario_"+d(inv.created_at).replaceAll("/","-")+".csv");alert("O Excel não carregou. Foi descarregado um CSV que abre diretamente no Excel.")}
- }catch(e){alert("Erro ao exportar: "+e.message)}
+  const{blob,filename}=await buildInventoryExcelBlob(id);
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement("a");a.href=url;a.download=filename;document.body.appendChild(a);a.click();a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),3000);
+ }catch(e){
+  console.error(e);
+  try{
+   const inv=inventories.find(x=>String(x.id)===String(id));
+   const rows=await getRows(id);
+   const map={};rows.forEach(r=>{let k=String(r.Codigo);map[k]??={Codigo:r.Codigo,Artigo:r.Artigo,Categoria:r.Categoria,Unidade:r.Unidade,CustoUnit:r.CustoUnit};map[k][r.Armazem]=r.Quantidade});
+   Object.values(map).forEach(r=>{locations.forEach(l=>{if(r[l.name]===undefined)r[l.name]=0});r.Total=locations.reduce((s,l)=>s+Number(r[l.name]||0),0);r.ValorTotal=r.Total*r.CustoUnit});
+   csvDownload(Object.values(map),"Inventario_"+d(inv.created_at).replaceAll("/","-")+".csv");
+   alert("O Excel não carregou. Foi descarregado um CSV que abre diretamente no Excel.");
+  }catch(e2){alert("Erro ao exportar: "+e.message)}
+ }
 }
 
 function pdfText(s){
