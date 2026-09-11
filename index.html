@@ -2496,12 +2496,13 @@ function icon(name){
   swap:'<path d="M7 7h13l-4-4M17 17H4l4 4"/>',
   trend:'<path d="M3 17l6-6 4 4 8-8"/><path d="M15 7h6v6"/>',
   audit:'<circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/>',
-  gear:'<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/>'
+  gear:'<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/>',
+  chat:'<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>'
  };
  return '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;margin-right:5px">'+(icons[name]||"")+'</svg>';
 }
-function nav(){return '<div class="nav"><button id="dashboard" class="secondary">'+icon("home")+'Dashboard</button><button id="history" class="secondary">'+icon("clock")+'Histórico</button><button id="stock" class="secondary">'+icon("chart")+'Stock</button><button id="compare" class="secondary">'+icon("swap")+'Comparar</button><button id="evolution" class="secondary">'+icon("trend")+'Evolução</button><button id="audit" class="secondary">'+icon("audit")+'Auditoria</button><button id="manage" class="secondary">'+icon("gear")+'Artigos/Armazéns</button></div>'}
-function bindNav(){document.getElementById("dashboard")?.addEventListener("click",loadDashboard);document.getElementById("history")?.addEventListener("click",showHistory);document.getElementById("stock")?.addEventListener("click",showStock);document.getElementById("compare")?.addEventListener("click",showCompare);document.getElementById("evolution")?.addEventListener("click",showEvolution);document.getElementById("audit")?.addEventListener("click",showAudit);document.getElementById("manage")?.addEventListener("click",showManage);showFab()}
+function nav(){return '<div class="nav"><button id="dashboard" class="secondary">'+icon("home")+'Dashboard</button><button id="history" class="secondary">'+icon("clock")+'Histórico</button><button id="stock" class="secondary">'+icon("chart")+'Stock</button><button id="compare" class="secondary">'+icon("swap")+'Comparar</button><button id="evolution" class="secondary">'+icon("trend")+'Evolução</button><button id="audit" class="secondary">'+icon("audit")+'Auditoria</button><button id="assistant" class="secondary">'+icon("chat")+'Assistente</button><button id="manage" class="secondary">'+icon("gear")+'Artigos/Armazéns</button></div>'}
+function bindNav(){document.getElementById("dashboard")?.addEventListener("click",loadDashboard);document.getElementById("history")?.addEventListener("click",showHistory);document.getElementById("stock")?.addEventListener("click",showStock);document.getElementById("compare")?.addEventListener("click",showCompare);document.getElementById("evolution")?.addEventListener("click",showEvolution);document.getElementById("audit")?.addEventListener("click",showAudit);document.getElementById("assistant")?.addEventListener("click",showAssistant);document.getElementById("manage")?.addEventListener("click",showManage);showFab()}
 
 function showFab(){
  document.getElementById("fabBtn").style.display="flex";
@@ -2521,6 +2522,7 @@ function toggleFabMenu(){
   '<button id="fabCompare">'+icon("swap")+'Comparar</button>'+
   '<button id="fabEvo">'+icon("trend")+'Evolução</button>'+
   '<button id="fabAudit">'+icon("audit")+'Auditoria</button>'+
+  '<button id="fabAssistant">'+icon("chat")+'Assistente</button>'+
   '<button id="fabManage">'+icon("gear")+'Artigos/Armazéns</button>';
  menu.style.display="block";
  document.getElementById("fabBtn").classList.add("open");
@@ -2530,6 +2532,7 @@ function toggleFabMenu(){
  document.getElementById("fabCompare").onclick=()=>{closeFabMenu();showCompare()};
  document.getElementById("fabEvo").onclick=()=>{closeFabMenu();showEvolution()};
  document.getElementById("fabAudit").onclick=()=>{closeFabMenu();showAudit()};
+ document.getElementById("fabAssistant").onclick=()=>{closeFabMenu();showAssistant()};
  document.getElementById("fabManage").onclick=()=>{closeFabMenu();showManage()};
  setTimeout(()=>document.addEventListener("click",fabOutsideClick),0);
 }
@@ -3414,6 +3417,55 @@ async function renderAudit(invId){
    renderTable(rows.filter(r=>r.operatorName.toLowerCase().includes(s)||(lm[String(r.location_id)]||"").toLowerCase().includes(s)||String(r.product_code).toLowerCase().includes(s)||(pm[String(r.product_code)]||"").toLowerCase().includes(s)));
   });
  }catch(e){console.error(e);el.innerHTML='<div class="error">Erro ao carregar auditoria: '+esc(e.message)+'</div>'}
+}
+
+let assistantHistory=[];
+
+async function showAssistant(){
+ app.innerHTML=nav()+'<div class="topbar"><div><h2>'+icon("chat")+'Assistente</h2><small>Pergunta sobre os dados do inventário — só lê, nunca altera nada</small></div></div>'+
+ '<div class="panel"><div id="assistantChat" style="min-height:120px;max-height:50vh;overflow-y:auto;margin-bottom:14px">'+
+ (assistantHistory.length?assistantHistory.map(m=>'<div style="margin-bottom:14px"><div style="font-weight:600;color:var(--brown);font-size:13px;margin-bottom:3px">'+(m.role==="user"?"Tu":"Assistente")+'</div><div style="white-space:pre-wrap">'+esc(m.text)+'</div></div>').join(""):
+ '<p class="muted">Experimenta perguntar, por exemplo:</p><div style="display:flex;flex-direction:column;gap:6px;margin-top:8px">'+
+  ['Qual foi a categoria com maior valor no último inventário?','Que artigos têm tido quebras recorrentes?','Compara o valor total dos últimos dois inventários'].map(q=>'<button class="secondary suggest-q" style="text-align:left">'+esc(q)+'</button>').join("")+
+ '</div>')+
+ '</div><div style="display:flex;gap:8px"><input id="assistantInput" class="search" style="margin:0;flex:1" placeholder="Escreve a tua pergunta..."><button id="assistantSend" class="primary">Perguntar</button></div></div>';
+ bindNav();
+ document.getElementById("assistantSend").addEventListener("click",sendAssistantQuestion);
+ document.getElementById("assistantInput").addEventListener("keydown",e=>{if(e.key==="Enter")sendAssistantQuestion()});
+ document.querySelectorAll(".suggest-q").forEach(b=>b.addEventListener("click",()=>{
+  document.getElementById("assistantInput").value=b.textContent;
+  sendAssistantQuestion();
+ }));
+}
+
+async function sendAssistantQuestion(){
+ const input=document.getElementById("assistantInput");
+ const question=input.value.trim();
+ if(!question)return;
+ assistantHistory.push({role:"user",text:question});
+ input.value="";
+ input.disabled=true;
+ document.getElementById("assistantSend").disabled=true;
+ renderAssistantHistoryOnly();
+ assistantHistory.push({role:"assistant",text:"A pensar..."});
+ renderAssistantHistoryOnly();
+ try{
+  const{data,error}=await db.functions.invoke("ask-inventory",{body:{question}});
+  if(error)throw error;
+  if(data?.error)throw new Error(data.error);
+  assistantHistory[assistantHistory.length-1]={role:"assistant",text:data.answer};
+ }catch(e){
+  console.error(e);
+  assistantHistory[assistantHistory.length-1]={role:"assistant",text:"⚠️ Não consegui responder: "+e.message};
+ }
+ showAssistant();
+}
+
+function renderAssistantHistoryOnly(){
+ const el=document.getElementById("assistantChat");
+ if(!el)return;
+ el.innerHTML=assistantHistory.map(m=>'<div style="margin-bottom:14px"><div style="font-weight:600;color:var(--brown);font-size:13px;margin-bottom:3px">'+(m.role==="user"?"Tu":"Assistente")+'</div><div style="white-space:pre-wrap">'+esc(m.text)+'</div></div>').join("");
+ el.scrollTop=el.scrollHeight;
 }
 
 async function showManage(){
