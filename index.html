@@ -3159,9 +3159,9 @@ async function buildCategoryReportPdfBlob(id){
  });
  p1.push(...pdfFooter("Página 1"));
 
- // ---- Página(s) 2+: Stock Físico Total por Família (quantidade) ----
+ // ---- Página(s) 2+: Stock Físico Total por Família (quantidade + valor) ----
  const map={};
- rows.forEach(r=>{const k=String(r.Codigo);map[k]??={Codigo:r.Codigo,Artigo:r.Artigo,Unidade:r.Unidade,Categoria:r.Categoria,Total:0};map[k].Total+=r.Quantidade});
+ rows.forEach(r=>{const k=String(r.Codigo);map[k]??={Codigo:r.Codigo,Artigo:r.Artigo,Unidade:r.Unidade,Categoria:r.Categoria,Total:0,Valor:0};map[k].Total+=r.Quantidade;map[k].Valor+=r.Valor});
  const order=["Produto Final","Matéria Prima","Embalagem","Detergentes","Sem categoria"];
  const byCat={};
  Object.values(map).forEach(r=>{(byCat[r.Categoria]??=[]).push(r)});
@@ -3174,17 +3174,21 @@ async function buildCategoryReportPdfBlob(id){
  const newPage=()=>{cur.push(...pdfFooter("Página "+pageNum));pages.push(cur);pageNum++;cur=[...pdfHeaderBand("Stock Físico Total por Família (cont.)")];cy=750};
  cats.forEach(cat=>{
   if(cy<90)newPage();
+  const catValor=byCat[cat].reduce((s,r)=>s+r.Valor,0);
   cur.push({text:cat,x:50,y:cy,size:13,bold:true,color:PDF_BROWN});
+  cur.push({text:fmtEur(catValor),x:480,y:cy,size:11,bold:true,color:PDF_BROWN});
   cy-=20;
   cur.push({type:"rect",x:50,y:cy-4,w:495,h:20,color:PDF_TAN});
   cur.push({text:"Artigo",x:58,y:cy+2,size:9,bold:true});
-  cur.push({text:"Total",x:480,y:cy+2,size:9,bold:true});
+  cur.push({text:"Qtd.",x:400,y:cy+2,size:9,bold:true});
+  cur.push({text:"Valor",x:475,y:cy+2,size:9,bold:true});
   cy-=24;
   byCat[cat].sort((a,b)=>String(a.Codigo).localeCompare(String(b.Codigo))).forEach((r,idx)=>{
    if(cy<70)newPage();
    if(idx%2===0)cur.push({type:"rect",x:50,y:cy-5,w:495,h:18,color:PDF_CREAM});
    cur.push({text:String(r.Codigo)+" — "+r.Artigo,x:58,y:cy,size:9});
-   cur.push({text:fmt(r.Total)+(r.Unidade?" "+r.Unidade:""),x:480,y:cy,size:9});
+   cur.push({text:fmt(r.Total)+(r.Unidade?" "+r.Unidade:""),x:400,y:cy,size:9});
+   cur.push({text:fmtEur(r.Valor),x:475,y:cy,size:9});
    cy-=18;
   });
   cy-=10;
