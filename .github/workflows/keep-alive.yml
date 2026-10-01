@@ -2,10 +2,8 @@ name: Manter Supabase ativo
 
 on:
   schedule:
-    # Todos os dias às 06:00 UTC (~07:00/08:00 em Portugal, dependendo da hora de verão)
     - cron: "0 6 * * *"
   workflow_dispatch:
-    # Permite correr manualmente em GitHub > Actions > "Manter Supabase ativo" > Run workflow
 
 jobs:
   ping:
