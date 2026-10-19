@@ -4147,85 +4147,107 @@ function renderEmbalagensDashboard(el){
 }
 
 function renderEmbalagemArtigos(el){
- const invDateStr=embalagemLastInventarioDate?new Date(embalagemLastInventarioDate).toLocaleDateString("pt-PT",{day:"2-digit",month:"long",year:"numeric"}):"—";
- const cats=[...new Set(EMBALAGENS_DATA.map(a=>a.cat))].sort();
- const filterCat=window._embCatFilter||"";
- const filterSearch=window._embSearch||"";
- const showAll=window._embShowAll||false;
- // Por defeito mostra só artigos com dados de consumo ou stock registado; "ver todos" mostra os 51
- const filtered=EMBALAGENS_DATA.filter(a=>{
-  if(!showAll&&!filterSearch&&!filterCat&&a.q2024===0&&a.q2025===0&&!(a.artigo in embalagemContagens))return false;
+ var invDateStr=embalagemLastInventarioDate?new Date(embalagemLastInventarioDate).toLocaleDateString("pt-PT",{day:"2-digit",month:"long",year:"numeric"}):"—";
+ var cats=[...new Set(EMBALAGENS_DATA.map(function(a){return a.cat;}))].sort();
+ var filterCat=window._embCatFilter||"";
+ var filterSearch=window._embSearch||"";
+ var showAll=window._embShowAll||false;
+ // Por defeito mostra só artigos com dados de consumo (q2024>0 ou q2025>0) ou stock>0
+ var filtered=EMBALAGENS_DATA.filter(function(a){
+  if(!showAll&&!filterSearch&&!filterCat&&a.q2024===0&&a.q2025===0&&!(embalagemContagens[a.artigo]>0))return false;
   if(filterCat&&a.cat!==filterCat)return false;
   if(filterSearch&&!a.desc.toLowerCase().includes(filterSearch.toLowerCase())&&!a.artigo.toLowerCase().includes(filterSearch.toLowerCase()))return false;
   return true;
  });
- const totalComDados=EMBALAGENS_DATA.filter(a=>a.q2024>0||a.q2025>0||(a.artigo in embalagemContagens)).length;
 
- el.innerHTML=`
-  <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;align-items:center">
-   <input id="embSearch" class="search" style="margin:0;flex:1;min-width:180px" placeholder="Pesquisar artigo..." value="${esc(filterSearch)}" oninput="window._embSearch=this.value;renderEmbalagemArtigos(document.getElementById('embalagensContent'))">
-   <select id="embCat" style="padding:11px;border:1px solid var(--tan);border-radius:8px" onchange="window._embCatFilter=this.value;renderEmbalagemArtigos(document.getElementById('embalagensContent'))">
-    <option value="">Todas as categorias</option>
-    ${cats.map(c=>`<option ${filterCat===c?"selected":""}>${esc(c)}</option>`).join("")}
-   </select>
-   <span class="muted" style="font-size:13px">${filtered.length} artigos</span>
-   ${!showAll&&!filterSearch&&!filterCat?`<button class="secondary" style="font-size:12px;white-space:nowrap" onclick="window._embShowAll=true;renderEmbalagemArtigos(document.getElementById('embalagensContent'))">Ver todos (${EMBALAGENS_DATA.length})</button>`:`<button class="secondary" style="font-size:12px" onclick="window._embShowAll=false;renderEmbalagemArtigos(document.getElementById('embalagensContent'))">Só com dados</button>`}
-  </div>
-  <div style="overflow-x:auto">
-   <table style="width:100%;border-collapse:collapse;font-size:13px">
-    <thead>
-     <tr style="border-bottom:2px solid var(--tan);background:var(--cream)">
-      <th style="text-align:left;padding:10px 8px;color:var(--brown)">Artigo</th>
-      <th style="text-align:left;padding:10px 8px;color:var(--brown)">Categoria</th>
-      <th style="text-align:right;padding:10px 8px;color:var(--brown)">2024</th>
-      <th style="text-align:right;padding:10px 8px;color:var(--brown)">2025</th>
-      <th style="text-align:right;padding:10px 8px;color:var(--brown)">Proj. 2026</th>
-      <th style="text-align:right;padding:10px 8px;color:var(--brown)">Stock atual</th>
-      <th style="text-align:right;padding:10px 8px;color:var(--brown)">Dias stock</th>
-      <th style="text-align:center;padding:10px 8px;color:var(--brown)">Estado</th>
-      <th style="text-align:center;padding:10px 8px;color:var(--brown)">Ação</th>
-     </tr>
-    </thead>
-    <tbody id="embArtigosBody">
-     ${filtered.map(a=>{
-      const p=proj2026(a.q2025,a.q2024);
-      const stock=embalagemContagens[a.artigo]||0;
-      const temStock=a.artigo in embalagemContagens;
-      const dias=stockDias(stock,p);
-      const r=stockRisco(stock,p);
-      const diasColor=dias===null?"#999":dias<30?"#A8493B":dias<60?"#C67C2A":dias<90?"#8C6F58":"#5E7A54";
-      return `<tr style="border-bottom:1px solid var(--tan)${dias!==null&&dias<30?";background:#FDF0EF":""}>
-       <td style="padding:10px 8px"><div style="font-weight:600">${esc(a.desc)}</div><div style="font-size:11px;color:#888">${esc(a.artigo)}</div></td>
-       <td style="padding:10px 8px"><span style="background:var(--tan);padding:2px 8px;border-radius:10px;font-size:11px">${esc(a.cat)}</span></td>
-       <td style="padding:10px 8px;text-align:right;color:#888">${a.q2024>0?a.q2024.toLocaleString("pt-PT"):'<span style="color:#ccc">—</span>'}</td>
-       <td style="padding:10px 8px;text-align:right;color:#666">${a.q2025>0?a.q2025.toLocaleString("pt-PT"):'<span style="color:#ccc">—</span>'}</td>
-       <td style="padding:10px 8px;text-align:right;font-weight:600;color:var(--brown)">${p>0?p.toLocaleString("pt-PT"):'<span style="color:#ccc;font-weight:400">—</span>'}</td>
-       <td style="padding:10px 8px;text-align:right">
-        ${temStock
-         ?`<b style="font-size:14px;color:var(--brown)">${stock.toLocaleString("pt-PT")}</b><div style="font-size:10px;color:#999">${invDateStr}</div>`
-         :`<input type="number" min="0" style="width:80px;padding:6px;border:1px solid var(--tan);border-radius:6px;text-align:right;font-size:13px"
-           value="" placeholder="inserir"
-           onchange="embalagemContagens['${esc(a.artigo)}']=parseInt(this.value)||0;saveEmbalagemContagem('${esc(a.artigo)}',parseInt(this.value)||0,currentUser?.nome||null);renderEmbalagemArtigos(document.getElementById('embalagensContent'))"
-           oninput="this.style.borderColor='var(--brown)'">`
-        }
-       </td>
-       <td style="padding:10px 8px;text-align:right;font-weight:700;color:${diasColor}">
-        ${dias===null?'<span style="color:#ccc;font-weight:400">—</span>':`${dias}`}
-       </td>
-       <td style="padding:10px 8px;text-align:center">${riscoBadge(r)}</td>
-       <td style="padding:10px 8px;text-align:center">
-        <button class="secondary" style="font-size:11px;padding:4px 10px" onclick="embalagemViewMode='orcamentos';embalagemNovoOrcPre='${esc(a.artigo)}';renderEmbalagens()">+ Orç.</button>
-       </td>
-      </tr>`;
-     }).join("")}
-    </tbody>
-   </table>
-  </div>
-  <div style="margin-top:12px;padding:12px;background:var(--cream);border-radius:8px;font-size:12px;color:#666">
-   <b>2024/2025:</b> consumo anual. <b>Proj. 2026:</b> 2025 anualizado +7,5% (estimativa de crescimento); artigos sem dados 2025 usam 2024 como base. <b>Dias stock:</b> stock ÷ consumo diário estimado (verde ≥90 · laranja 60–90 · vermelho &lt;60 · crítico &lt;30).
-   ${embalagemLastInventarioDate?` · Stock do inventário de <b>${new Date(embalagemLastInventarioDate).toLocaleDateString("pt-PT",{day:"2-digit",month:"long",year:"numeric"})}</b>.`:""}
-  </div>
- `;
+ // Construir rows separadamente para evitar problemas de template literals aninhados
+ var rows=filtered.map(function(a){
+  var p=proj2026(a.q2025,a.q2024);
+  var stock=embalagemContagens[a.artigo]||0;
+  var temStock=embalagemContagens[a.artigo]>0;
+  var dias=stockDias(stock,p);
+  var r=stockRisco(stock,p);
+  var diasColor=dias===null?"#999":dias<30?"#A8493B":dias<60?"#C67C2A":dias<90?"#8C6F58":"#5E7A54";
+  var rowStyle="border-bottom:1px solid var(--tan);"+(dias!==null&&dias<30?"background:#FDF0EF;":"");
+  var q2024Cell=a.q2024>0?a.q2024.toLocaleString("pt-PT"):'<span style="color:#ccc">—</span>';
+  var q2025Cell=a.q2025>0?a.q2025.toLocaleString("pt-PT"):'<span style="color:#ccc">—</span>';
+  var projCell=p>0?p.toLocaleString("pt-PT"):'<span style="color:#ccc;font-weight:400">—</span>';
+  var stockCell;
+  if(temStock){
+   stockCell='<b style="font-size:14px;color:var(--brown)">'+stock.toLocaleString("pt-PT")+'</b>'
+    +'<div style="font-size:10px;color:#999">'+invDateStr+'</div>';
+  } else {
+   stockCell='<input type="number" min="0"'
+    +' style="width:80px;padding:6px;border:1px solid var(--tan);border-radius:6px;text-align:right;font-size:13px"'
+    +' value="" placeholder="inserir"'
+    +' onchange="embalagemContagens[\''+esc(a.artigo)+'\']=parseInt(this.value)||0;'
+    +'saveEmbalagemContagem(\''+esc(a.artigo)+'\',parseInt(this.value)||0,currentUser&&currentUser.nome||null);'
+    +'renderEmbalagemArtigos(document.getElementById(\'embalagensContent\'))"'
+    +' oninput="this.style.borderColor=\'var(--brown)\'">';
+  }
+  var diasCell=dias===null?'<span style="color:#ccc;font-weight:400">—</span>':String(dias);
+  return '<tr style="'+rowStyle+'">'
+   +'<td style="padding:10px 8px"><div style="font-weight:600">'+esc(a.desc)+'</div><div style="font-size:11px;color:#888">'+esc(a.artigo)+'</div></td>'
+   +'<td style="padding:10px 8px"><span style="background:var(--tan);padding:2px 8px;border-radius:10px;font-size:11px">'+esc(a.cat)+'</span></td>'
+   +'<td style="padding:10px 8px;text-align:right;color:#888">'+q2024Cell+'</td>'
+   +'<td style="padding:10px 8px;text-align:right;color:#666">'+q2025Cell+'</td>'
+   +'<td style="padding:10px 8px;text-align:right;font-weight:600;color:var(--brown)">'+projCell+'</td>'
+   +'<td style="padding:10px 8px;text-align:right">'+stockCell+'</td>'
+   +'<td style="padding:10px 8px;text-align:right;font-weight:700;color:'+diasColor+'">'+diasCell+'</td>'
+   +'<td style="padding:10px 8px;text-align:center">'+riscoBadge(r)+'</td>'
+   +'<td style="padding:10px 8px;text-align:center">'
+   +'<button class="secondary" style="font-size:11px;padding:4px 10px"'
+   +' onclick="embalagemViewMode=\'orcamentos\';embalagemNovoOrcPre=\''+esc(a.artigo)+'\';renderEmbalagens()">+ Orç.</button>'
+   +'</td>'
+   +'</tr>';
+ }).join("");
+
+ var toggleBtn=(!showAll&&!filterSearch&&!filterCat)
+  ?('<button class="secondary" style="font-size:12px;white-space:nowrap"'
+    +' onclick="window._embShowAll=true;renderEmbalagemArtigos(document.getElementById(\'embalagensContent\'))">'
+    +'Ver todos ('+EMBALAGENS_DATA.length+')</button>')
+  :('<button class="secondary" style="font-size:12px"'
+    +' onclick="window._embShowAll=false;renderEmbalagemArtigos(document.getElementById(\'embalagensContent\'))">'
+    +'Só com dados</button>');
+
+ var catOptions='<option value="">Todas as categorias</option>'
+  +cats.map(function(c){return '<option'+(filterCat===c?' selected':'')+'>'+esc(c)+'</option>';}).join("");
+
+ var legendaStock=embalagemLastInventarioDate
+  ?' · Stock do inventário de <b>'+new Date(embalagemLastInventarioDate).toLocaleDateString("pt-PT",{day:"2-digit",month:"long",year:"numeric"})+'</b>.'
+  :'';
+
+ el.innerHTML=''
+  +'<div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;align-items:center">'
+  +'<input id="embSearch" class="search" style="margin:0;flex:1;min-width:180px" placeholder="Pesquisar artigo..."'
+  +' value="'+esc(filterSearch)+'"'
+  +' oninput="window._embSearch=this.value;renderEmbalagemArtigos(document.getElementById(\'embalagensContent\'))">'
+  +'<select id="embCat" style="padding:11px;border:1px solid var(--tan);border-radius:8px"'
+  +' onchange="window._embCatFilter=this.value;renderEmbalagemArtigos(document.getElementById(\'embalagensContent\'))">'
+  +catOptions+'</select>'
+  +'<span class="muted" style="font-size:13px">'+filtered.length+' artigos</span>'
+  +toggleBtn
+  +'</div>'
+  +'<div style="overflow-x:auto">'
+  +'<table style="width:100%;border-collapse:collapse;font-size:13px">'
+  +'<thead><tr style="border-bottom:2px solid var(--tan);background:var(--cream)">'
+  +'<th style="text-align:left;padding:10px 8px;color:var(--brown)">Artigo</th>'
+  +'<th style="text-align:left;padding:10px 8px;color:var(--brown)">Categoria</th>'
+  +'<th style="text-align:right;padding:10px 8px;color:var(--brown)">2024</th>'
+  +'<th style="text-align:right;padding:10px 8px;color:var(--brown)">2025</th>'
+  +'<th style="text-align:right;padding:10px 8px;color:var(--brown)">Proj. 2026</th>'
+  +'<th style="text-align:right;padding:10px 8px;color:var(--brown)">Stock atual</th>'
+  +'<th style="text-align:right;padding:10px 8px;color:var(--brown)">Dias stock</th>'
+  +'<th style="text-align:center;padding:10px 8px;color:var(--brown)">Estado</th>'
+  +'<th style="text-align:center;padding:10px 8px;color:var(--brown)">Ação</th>'
+  +'</tr></thead>'
+  +'<tbody>'+rows+'</tbody>'
+  +'</table></div>'
+  +'<div style="margin-top:12px;padding:12px;background:var(--cream);border-radius:8px;font-size:12px;color:#666">'
+  +'<b>2024/2025:</b> consumo anual. <b>Proj. 2026:</b> 2025 anualizado +7,5% (estimativa de crescimento); artigos sem dados 2025 usam 2024 como base. '
+  +'<b>Dias stock:</b> stock &divide; consumo diário estimado (verde &ge;90 &middot; laranja 60&ndash;90 &middot; vermelho &lt;60 &middot; crítico &lt;30).'
+  +legendaStock
+  +'</div>';
 }
 
 function renderEmbalagemOrcamentos(el){
