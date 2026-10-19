@@ -2443,7 +2443,7 @@ const db=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
 let locations=[],products=[],inventories=[],currentInventory=null,currentLocation=null,lastCounts={},currentCounts={},reportRows=[];
 let currentOperator="",currentOperatorId="";
 // Mapa operador -> email interno (a conta real fica no Supabase Auth; o operador só vê o nome + PIN)
-const OPERATORS={"Beatriz":"administrativo@tipiedade.com","Inês":"geral@tipiedade.com","Rui":"sales@tipiedade.com","Milene":"qualidade@tipiedade.com","Admin":"admin@inventario-pltp.app"};
+const OPERATORS={"Beatriz":"administrativo@tipiedade.com","Inês":"geral@tipiedade.com","Rui":"sales@tipiedade.com","Milene":"qualidade@tipiedade.com","CMH":"cmh@tipiedade.com","AFM":"afm@tipiedade.com"};
 
 const app=document.getElementById("app");
 const esc=v=>String(v??"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;").replaceAll("'","&#039;");
