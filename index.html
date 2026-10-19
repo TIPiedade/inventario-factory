@@ -3810,44 +3810,40 @@ async function loadEmbalagemData(){
  embalagemLastInventarioDate=null;
  let _dbg={inv:null,prods:0,counts:0,matched:0,invErr:null,prodErr:null,cntErr:null};
  try{
-  // 1. Contagens automáticas — buscar de todos os inventários, do mais recente para o mais antigo
-  // Para cada artigo de embalagem, usar a contagem mais recente com valor > 0
-  const{data:prods,error:eProd}=await db.from("products").select("code,category").eq("category","Embalagem");
-  _dbg.prodErr=eProd?.message||null;
-  _dbg.prods=prods?.length||0;
-  if(!eProd&&prods&&prods.length>0){
-   const embCodes=new Set(prods.map(p=>String(p.code)));
-   // Buscar todos os inventários do mais recente para o mais antigo
-   const{data:allInvs,error:eInv}=await db.from("inventories").select("id,created_at,name").order("created_at",{ascending:false});
-   _dbg.invErr=eInv?.message||null;
-   _dbg.allInvs=allInvs?.length||0;
-   if(!eInv&&allInvs&&allInvs.length>0){
-    // Buscar TODAS as counts de embalagem de uma vez (mais eficiente)
-    const{data:allCnts,error:eCnt}=await db.from("counts").select("product_code,quantity,inventory_id").in("product_code",[...embCodes]).gt("quantity",0).order("inventory_id",{ascending:false});
-    _dbg.cntErr=eCnt?.message||null;
-    _dbg.counts=allCnts?.length||0;
-    if(!eCnt&&allCnts&&allCnts.length>0){
-     // Ordenar inventários por data (mais recente = índice menor)
-     const invOrder=Object.fromEntries(allInvs.map((inv,i)=>[String(inv.id),i]));
-     // Para cada artigo, guardar a contagem do inventário mais recente com qty>0
-     const bestByCode={};
-     allCnts.forEach(r=>{
-      const code=String(r.product_code);
-      const order=invOrder[String(r.inventory_id)]??999;
-      if(!(code in bestByCode)||order<bestByCode[code].order){
-       bestByCode[code]={qty:Number(r.quantity),order,invId:r.inventory_id};
-      }
-     });
-     // Encontrar o inventário mais recente que tem contagens de embalagem
-     let bestInvId=null,bestInvOrder=999;
-     Object.values(bestByCode).forEach(v=>{if(v.order<bestInvOrder){bestInvOrder=v.order;bestInvId=v.invId;}});
-     if(bestInvId!==null){
-      const bestInv=allInvs.find(i=>String(i.id)===String(bestInvId));
-      if(bestInv)embalagemLastInventarioDate=bestInv.created_at;
-      _dbg.inv=bestInv?.name||bestInvId;
+  // 1. Contagens automáticas — usar directamente os códigos de EMBALAGENS_DATA
+  // (products.code são numéricos e não batem com os artigo codes do EMBALAGENS_DATA)
+  const embArtigoCodes=EMBALAGENS_DATA.map(a=>a.artigo);
+  _dbg.prods=embArtigoCodes.length;
+  // Buscar todos os inventários do mais recente para o mais antigo
+  const{data:allInvs,error:eInv}=await db.from("inventories").select("id,created_at,name").order("created_at",{ascending:false});
+  _dbg.invErr=eInv?.message||null;
+  _dbg.allInvs=allInvs?.length||0;
+  if(!eInv&&allInvs&&allInvs.length>0){
+   // Buscar TODAS as counts destes artigos com qty>0
+   const{data:allCnts,error:eCnt}=await db.from("counts").select("product_code,quantity,inventory_id").in("product_code",embArtigoCodes).gt("quantity",0);
+   _dbg.cntErr=eCnt?.message||null;
+   _dbg.counts=allCnts?.length||0;
+   if(!eCnt&&allCnts&&allCnts.length>0){
+    // Ordenar inventários por data (mais recente = índice menor)
+    const invOrder=Object.fromEntries(allInvs.map((inv,i)=>[String(inv.id),i]));
+    // Para cada artigo, guardar a contagem do inventário mais recente com qty>0
+    const bestByCode={};
+    allCnts.forEach(r=>{
+     const code=String(r.product_code);
+     const order=invOrder[String(r.inventory_id)]??999;
+     if(!(code in bestByCode)||order<bestByCode[code].order){
+      bestByCode[code]={qty:Number(r.quantity),order,invId:r.inventory_id};
      }
-     Object.entries(bestByCode).forEach(([code,v])=>{embalagemContagens[code]=v.qty;_dbg.matched++;});
+    });
+    // Encontrar o inventário mais recente que tem contagens de embalagem
+    let bestInvId=null,bestInvOrder=999;
+    Object.values(bestByCode).forEach(v=>{if(v.order<bestInvOrder){bestInvOrder=v.order;bestInvId=v.invId;}});
+    if(bestInvId!==null){
+     const bestInv=allInvs.find(i=>String(i.id)===String(bestInvId));
+     if(bestInv)embalagemLastInventarioDate=bestInv.created_at;
+     _dbg.inv=bestInv?.name||bestInvId;
     }
+    Object.entries(bestByCode).forEach(([code,v])=>{embalagemContagens[code]=v.qty;_dbg.matched++;});
    }
   }
   embalagemDebug=_dbg;
