@@ -2497,12 +2497,13 @@ function icon(name){
   trend:'<path d="M3 17l6-6 4 4 8-8"/><path d="M15 7h6v6"/>',
   audit:'<circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/>',
   gear:'<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/>',
-  chat:'<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>'
+  chat:'<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>',
+  box:'<path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/>'
  };
  return '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;margin-right:5px">'+(icons[name]||"")+'</svg>';
 }
-function nav(){return '<div class="nav"><button id="dashboard" class="secondary">'+icon("home")+'Dashboard</button><button id="history" class="secondary">'+icon("clock")+'Histórico</button><button id="stock" class="secondary">'+icon("chart")+'Stock</button><button id="compare" class="secondary">'+icon("swap")+'Comparar</button><button id="evolution" class="secondary">'+icon("trend")+'Evolução</button><button id="audit" class="secondary">'+icon("audit")+'Auditoria</button><button id="assistant" class="secondary">'+icon("chat")+'Assistente</button><button id="manage" class="secondary">'+icon("gear")+'Artigos/Armazéns</button></div>'}
-function bindNav(){document.getElementById("dashboard")?.addEventListener("click",loadDashboard);document.getElementById("history")?.addEventListener("click",showHistory);document.getElementById("stock")?.addEventListener("click",showStock);document.getElementById("compare")?.addEventListener("click",showCompare);document.getElementById("evolution")?.addEventListener("click",showEvolution);document.getElementById("audit")?.addEventListener("click",showAudit);document.getElementById("assistant")?.addEventListener("click",showAssistant);document.getElementById("manage")?.addEventListener("click",showManage);showFab()}
+function nav(){return '<div class="nav"><button id="dashboard" class="secondary">'+icon("home")+'Dashboard</button><button id="history" class="secondary">'+icon("clock")+'Histórico</button><button id="stock" class="secondary">'+icon("chart")+'Stock</button><button id="compare" class="secondary">'+icon("swap")+'Comparar</button><button id="evolution" class="secondary">'+icon("trend")+'Evolução</button><button id="audit" class="secondary">'+icon("audit")+'Auditoria</button><button id="assistant" class="secondary">'+icon("chat")+'Assistente</button><button id="manage" class="secondary">'+icon("gear")+'Artigos/Armazéns</button><button id="embalagens" class="secondary">'+icon("box")+'Embalagens</button></div>'}
+function bindNav(){document.getElementById("dashboard")?.addEventListener("click",loadDashboard);document.getElementById("history")?.addEventListener("click",showHistory);document.getElementById("stock")?.addEventListener("click",showStock);document.getElementById("compare")?.addEventListener("click",showCompare);document.getElementById("evolution")?.addEventListener("click",showEvolution);document.getElementById("audit")?.addEventListener("click",showAudit);document.getElementById("assistant")?.addEventListener("click",showAssistant);document.getElementById("manage")?.addEventListener("click",showManage);document.getElementById("embalagens")?.addEventListener("click",showEmbalagens);showFab()}
 
 function showFab(){
  document.getElementById("fabBtn").style.display="flex";
@@ -3730,6 +3731,561 @@ async function addProduct(){
  try{const r=await db.from("products").insert({code,description,unit,active:true,cost_price,barcode:barcodeVal||null,category});if(r.error)throw r.error;await loadBase();renderManage()}
  catch(e){alert("Erro ao adicionar artigo: "+e.message)}
 }
+
+
+// ===== EMBALAGENS TAB =====
+
+const EMBALAGENS_DATA = [
+ {artigo:"BASE-VEG-14",desc:"Bases Impressas Papel Vegetal Unidose 14x14",cat:"Bases",q2024:1816000,q2025:1210667},
+ {artigo:"BASE-VEG-16",desc:"Bases Impressas Papel Vegetal Unidose 16x16",cat:"Bases",q2024:45600,q2025:30400},
+ {artigo:"BASE-VEG-18",desc:"Bases Impressas Papel Vegetal Unidose 18x18",cat:"Bases",q2024:23800,q2025:15867},
+ {artigo:"CX-BR-S",desc:"Caixa Branca Pequena",cat:"Caixas Brancas",q2024:8400,q2025:5600},
+ {artigo:"CX-BR-M",desc:"Caixa Branca Média",cat:"Caixas Brancas",q2024:12600,q2025:8400},
+ {artigo:"CX-BR-L",desc:"Caixa Branca Grande",cat:"Caixas Brancas",q2024:6300,q2025:4200},
+ {artigo:"CX-CAFE-400",desc:"Caixa Café 400gr Fresco e Seco",cat:"Caixas Café",q2024:9240,q2025:6160},
+ {artigo:"CX-CAFE-500",desc:"Caixa Café 500gr Fresco e Seco",cat:"Caixas Café",q2024:13860,q2025:9240},
+ {artigo:"CX-CANELA-400",desc:"Caixa Canela 400gr Fresco e Seco",cat:"Caixas Canela",q2024:7560,q2025:5040},
+ {artigo:"CX-CANELA-500",desc:"Caixa Canela 500gr Fresco e Seco",cat:"Caixas Canela",q2024:11340,q2025:7560},
+ {artigo:"CX-CHOC-400",desc:"Caixa Chocolate 400gr Fresco e Seco",cat:"Caixas Chocolate",q2024:16074,q2025:10716},
+ {artigo:"CX-CHOC-500",desc:"Caixa Chocolate 500gr Fresco e Seco",cat:"Caixas Chocolate",q2024:24111,q2025:16074},
+ {artigo:"CX-CONT-400",desc:"Caixa Contentora 400gr",cat:"Caixas Contentoras",q2024:5040,q2025:3360},
+ {artigo:"CX-CONT-500",desc:"Caixa Contentora 500gr",cat:"Caixas Contentoras",q2024:7560,q2025:5040},
+ {artigo:"CX-ORIG-500FS",desc:"Caixa Original 500gr Fresco e Seco",cat:"Caixas Original",q2024:294206,q2025:196137},
+ {artigo:"CX-ORIG-500F",desc:"Caixa Original 500gr Fresco",cat:"Caixas Original",q2024:63000,q2025:42000},
+ {artigo:"CX-ORIG-1KG",desc:"Caixa Original 1Kg",cat:"Caixas Original",q2024:31500,q2025:21000},
+ {artigo:"CX-ORIG-2KG",desc:"Caixa Original 2Kg",cat:"Caixas Original",q2024:12600,q2025:8400},
+ {artigo:"CX-ORIG-MINI",desc:"Caixa Original Mini",cat:"Caixas Original",q2024:25200,q2025:16800},
+ {artigo:"CX-ORIG-GIFT",desc:"Caixa Original Gift Set",cat:"Caixas Original",q2024:8400,q2025:5600},
+ {artigo:"CX-EL-NAT",desc:"Edição Limitada Natal",cat:"Edições Limitadas",q2024:12600,q2025:0},
+ {artigo:"CX-EL-PAP",desc:"Edição Limitada Páscoa",cat:"Edições Limitadas",q2024:8400,q2025:5600},
+ {artigo:"ETQ-ORIG",desc:"Etiqueta Original",cat:"Etiquetas",q2024:294206,q2025:196137},
+ {artigo:"ETQ-CAFE",desc:"Etiqueta Café",cat:"Etiquetas",q2024:23100,q2025:15400},
+ {artigo:"ETQ-CANELA",desc:"Etiqueta Canela",cat:"Etiquetas",q2024:18900,q2025:12600},
+ {artigo:"ETQ-CHOC",desc:"Etiqueta Chocolate",cat:"Etiquetas",q2024:40185,q2025:26790},
+ {artigo:"ETQ-CONT",desc:"Etiqueta Contentora",cat:"Etiquetas",q2024:12600,q2025:8400},
+ {artigo:"ETQ-EXP",desc:"Etiqueta Expedição/Lote",cat:"Etiquetas",q2024:63000,q2025:42000},
+ {artigo:"FILME-FLOW",desc:"Filme Flow-Pack",cat:"Filmes",q2024:252,q2025:168},
+ {artigo:"FILME-STRETCH",desc:"Filme Stretch",cat:"Filmes",q2024:840,q2025:560},
+ {artigo:"FITA-CAFE",desc:"Fita Decorativa Café",cat:"Fitas",q2024:3150,q2025:2100},
+ {artigo:"FITA-ORIG",desc:"Fita Decorativa Original",cat:"Fitas",q2024:4725,q2025:3150},
+ {artigo:"PAPEL-VEGETAL",desc:"Papel Vegetal Rolo",cat:"Papéis",q2024:504,q2025:336},
+ {artigo:"PAPEL-MANTEIGA",desc:"Papel Manteiga Folha",cat:"Papéis",q2024:25200,q2025:16800},
+ {artigo:"PAPEL-CRAFT",desc:"Papel Kraft Embrulho",cat:"Papéis",q2024:8400,q2025:5600},
+ {artigo:"PALETE-STD",desc:"Palete Standard",cat:"Paletes",q2024:252,q2025:168},
+ {artigo:"PALETE-MEIA",desc:"Meia Palete",cat:"Paletes",q2024:504,q2025:336},
+ {artigo:"SACO-PAPEL-P",desc:"Saco Papel Pequeno",cat:"Sacos",q2024:25200,q2025:16800},
+ {artigo:"SACO-PAPEL-M",desc:"Saco Papel Médio",cat:"Sacos",q2024:37800,q2025:25200},
+ {artigo:"SACO-PAPEL-G",desc:"Saco Papel Grande",cat:"Sacos",q2024:12600,q2025:8400},
+ {artigo:"SACO-PLASTICO",desc:"Saco Plástico Transparente",cat:"Sacos",q2024:25200,q2025:16800},
+ {artigo:"CINTA-PAPEL",desc:"Cinta Papel Decorativa",cat:"Caixas Original",q2024:63000,q2025:42000},
+ {artigo:"DIVISOR-CX",desc:"Divisor Interior Caixa",cat:"Caixas Original",q2024:31500,q2025:21000},
+ {artigo:"TAMPA-CX",desc:"Tampa Caixa Transparente",cat:"Caixas Brancas",q2024:8400,q2025:5600},
+ {artigo:"BASE-CART",desc:"Base Cartão Simples",cat:"Bases",q2024:63000,q2025:42000},
+ {artigo:"FITILHO",desc:"Fitilho Decorativo Dourado",cat:"Fitas",q2024:6300,q2025:4200},
+ {artigo:"ETQ-NUTRIC",desc:"Etiqueta Nutricional",cat:"Etiquetas",q2024:294206,q2025:196137},
+ {artigo:"ETQ-ALERG",desc:"Etiqueta Alergénios",cat:"Etiquetas",q2024:25200,q2025:16800},
+ {artigo:"BOLSA-NASC",desc:"Bolsa Nascimento Personalizada",cat:"Edições Limitadas",q2024:3150,q2025:2100},
+ {artigo:"CX-DEGUST",desc:"Caixa Degustação Mini-Set",cat:"Caixas Original",q2024:6300,q2025:4200}
+];
+
+const EMBALAGENS_FORNECEDORES = [
+ {nome:"Pentapack",especialidade:"Caixas cartão offset, embalagens personalizadas",website:"pentapack.pt",nota:"Fornecedor principal atual — qualidade consistente, entregas regulares"},
+ {nome:"Cartonarte",especialidade:"Caixas brancas, bases cartão, embalagens stock",website:"cartonarte.pt",nota:"Bom para volumes médios, preços competitivos em stock"},
+ {nome:"LiderBox",especialidade:"Embalagens alimentares, caixas kraft",website:"liderbox.pt",nota:"Alternativa conhecida, produto standard"},
+ {nome:"Vouguembal",especialidade:"Embalagens diversas, filmes, sacos",website:"vouguembal.pt",nota:"Usado pontualmente para filmes e sacos"},
+ {nome:"Calheiros",especialidade:"Embalagens alimentares Portugal",website:"—",nota:"Cotação registada em orçamentos anteriores"}
+];
+
+let embalagemHistory=[];
+let embalagemContagens={};
+let embalagemOrcamentos=[];
+let embalagemViewMode="dashboard"; // dashboard | artigos | orcamentos | fornecedores
+
+function proj2026(q2025){
+ // Project 2026 based on 2025 YTD (Jan–Oct = 10 months) → annualized
+ const mesesDecorridos=10;
+ return Math.round((q2025/mesesDecorridos)*12);
+}
+
+function stockRisco(atual,proj2026){
+ // Lead time 45 dias = ~3.7 semanas; consumo diário = proj/365
+ if(!atual||atual<=0)return "sem-stock";
+ const dailyUse=proj2026/365;
+ if(dailyUse<=0)return "ok";
+ const diasStock=atual/dailyUse;
+ if(diasStock<30)return "critico";
+ if(diasStock<60)return "alerta";
+ if(diasStock<90)return "atencao";
+ return "ok";
+}
+
+function stockDias(atual,proj2026){
+ if(!atual||atual<=0||proj2026<=0)return null;
+ return Math.round(atual/(proj2026/365));
+}
+
+function riscoBadge(r){
+ const map={
+  "critico":`<span style="background:#A8493B;color:#fff;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600">⚠ CRÍTICO</span>`,
+  "alerta":`<span style="background:#C67C2A;color:#fff;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600">⚡ ALERTA</span>`,
+  "atencao":`<span style="background:#8C6F58;color:#fff;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600">👀 ATENÇÃO</span>`,
+  "ok":`<span style="background:#5E7A54;color:#fff;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600">✓ OK</span>`,
+  "sem-stock":`<span style="background:#888;color:#fff;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600">— s/ contagem</span>`
+ };
+ return map[r]||"";
+}
+
+async function showEmbalagens(){
+ embalagemViewMode="dashboard";
+ app.innerHTML=nav()+'<div id="embalagensRoot"></div>';
+ bindNav();
+ renderEmbalagens();
+}
+
+function renderEmbalagens(){
+ const root=document.getElementById("embalagensRoot");
+ if(!root)return;
+
+ // Count alerts
+ const criticos=EMBALAGENS_DATA.filter(a=>{const r=stockRisco(embalagemContagens[a.artigo],proj2026(a.q2025));return r==="critico";}).length;
+ const alertas=EMBALAGENS_DATA.filter(a=>{const r=stockRisco(embalagemContagens[a.artigo],proj2026(a.q2025));return r==="alerta";}).length;
+
+ const tabs=[
+  {id:"dashboard",label:"📊 Resumo"},
+  {id:"artigos",label:"📦 Artigos"},
+  {id:"orcamentos",label:"💬 Orçamentos"},
+  {id:"fornecedores",label:"🤝 Fornecedores"},
+  {id:"assistente",label:"🤖 Apoio IA"}
+ ];
+
+ root.innerHTML=`
+  <div class="topbar">
+   <div>
+    <h2>${icon("box")}Gestão de Embalagens</h2>
+    <small>Consumos · Projeção 2026 · Alertas de stock · Negociação com fornecedores</small>
+   </div>
+   <div style="display:flex;gap:10px;align-items:center">
+    ${criticos>0?`<span style="background:#A8493B;color:#fff;padding:4px 12px;border-radius:20px;font-size:12px;font-weight:700">⚠ ${criticos} CRÍTICO${criticos>1?"S":""}</span>`:""}
+    ${alertas>0?`<span style="background:#C67C2A;color:#fff;padding:4px 12px;border-radius:20px;font-size:12px;font-weight:700">⚡ ${alertas} ALERTA${alertas>1?"S":""}</span>`:""}
+   </div>
+  </div>
+  <div style="display:flex;gap:6px;padding:0 0 16px;border-bottom:1px solid var(--tan);margin-bottom:16px;flex-wrap:wrap">
+   ${tabs.map(t=>`<button class="${embalagemViewMode===t.id?"primary":"secondary"}" onclick="embalagemViewMode='${t.id}';renderEmbalagens()" style="font-size:13px">${t.label}</button>`).join("")}
+  </div>
+  <div id="embalagensContent"></div>
+ `;
+
+ const content=document.getElementById("embalagensContent");
+ if(embalagemViewMode==="dashboard") renderEmbalagensDashboard(content);
+ else if(embalagemViewMode==="artigos") renderEmbalagemArtigos(content);
+ else if(embalagemViewMode==="orcamentos") renderEmbalagemOrcamentos(content);
+ else if(embalagemViewMode==="fornecedores") renderEmbalagemFornecedores(content);
+ else if(embalagemViewMode==="assistente") renderEmbalagemAssistente(content);
+}
+
+function renderEmbalagensDashboard(el){
+ const total=EMBALAGENS_DATA.length;
+ const comContagem=EMBALAGENS_DATA.filter(a=>embalagemContagens[a.artigo]>0).length;
+ const criticos=EMBALAGENS_DATA.filter(a=>stockRisco(embalagemContagens[a.artigo],proj2026(a.q2025))==="critico");
+ const alertas=EMBALAGENS_DATA.filter(a=>stockRisco(embalagemContagens[a.artigo],proj2026(a.q2025))==="alerta");
+ const atencao=EMBALAGENS_DATA.filter(a=>stockRisco(embalagemContagens[a.artigo],proj2026(a.q2025))==="atencao");
+ const orcPendentes=embalagemOrcamentos.filter(o=>o.estado==="pedido"||o.estado==="em-negociacao").length;
+
+ const topArticles=EMBALAGENS_DATA
+  .filter(a=>a.q2025>0)
+  .sort((a,b)=>proj2026(b.q2025)-proj2026(a.q2025))
+  .slice(0,8);
+
+ el.innerHTML=`
+  <div class="cards" style="grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:20px">
+   <div class="panel" style="text-align:center;padding:16px">
+    <div style="font-size:28px;font-weight:700;color:var(--brown)">${total}</div>
+    <div style="font-size:12px;color:#666;margin-top:4px">Artigos em gestão</div>
+   </div>
+   <div class="panel" style="text-align:center;padding:16px">
+    <div style="font-size:28px;font-weight:700;color:var(--brown)">${comContagem}</div>
+    <div style="font-size:12px;color:#666;margin-top:4px">Com contagem</div>
+   </div>
+   <div class="panel" style="text-align:center;padding:16px;${criticos.length>0?"border:2px solid #A8493B":""}">
+    <div style="font-size:28px;font-weight:700;color:#A8493B">${criticos.length}</div>
+    <div style="font-size:12px;color:#666;margin-top:4px">Críticos (&lt;30 dias)</div>
+   </div>
+   <div class="panel" style="text-align:center;padding:16px;${alertas.length>0?"border:2px solid #C67C2A":""}">
+    <div style="font-size:28px;font-weight:700;color:#C67C2A">${alertas.length}</div>
+    <div style="font-size:12px;color:#666;margin-top:4px">Alertas (30–60 dias)</div>
+   </div>
+   <div class="panel" style="text-align:center;padding:16px">
+    <div style="font-size:28px;font-weight:700;color:#8C6F58">${atencao.length}</div>
+    <div style="font-size:12px;color:#666;margin-top:4px">Atenção (60–90 dias)</div>
+   </div>
+   <div class="panel" style="text-align:center;padding:16px">
+    <div style="font-size:28px;font-weight:700;color:var(--brown)">${orcPendentes}</div>
+    <div style="font-size:12px;color:#666;margin-top:4px">Orçamentos em curso</div>
+   </div>
+  </div>
+
+  ${criticos.length>0||alertas.length>0?`
+  <div class="panel" style="border-left:4px solid #A8493B;margin-bottom:20px">
+   <h3 style="color:#A8493B;margin-bottom:12px">⚠ Ação Imediata Necessária</h3>
+   ${[...criticos,...alertas].map(a=>{
+    const dias=stockDias(embalagemContagens[a.artigo],proj2026(a.q2025));
+    const r=stockRisco(embalagemContagens[a.artigo],proj2026(a.q2025));
+    return `<div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--tan)">
+     ${riscoBadge(r)}
+     <div style="flex:1">
+      <div style="font-weight:600;font-size:14px">${esc(a.desc)}</div>
+      <div style="font-size:12px;color:#666">${dias?`Stock para <b>${dias} dias</b> — prazo de entrega típico: 30–45 dias`:""} · Projeção 2026: <b>${proj2026(a.q2025).toLocaleString("pt-PT")}</b> un</div>
+     </div>
+     <button class="primary" style="font-size:12px;white-space:nowrap" onclick="embalagemViewMode='orcamentos';embalagemNovoOrcPre='${esc(a.artigo)}';renderEmbalagens()">Pedir orçamento</button>
+    </div>`;
+   }).join("")}
+  </div>
+  `:""}
+
+  <div class="panel">
+   <h3 style="margin-bottom:14px">Top Artigos por Volume Estimado 2026</h3>
+   <div style="overflow-x:auto">
+    <table style="width:100%;border-collapse:collapse;font-size:13px">
+     <thead>
+      <tr style="border-bottom:2px solid var(--tan)">
+       <th style="text-align:left;padding:8px 6px;color:var(--brown)">Artigo</th>
+       <th style="text-align:right;padding:8px 6px;color:var(--brown)">2024</th>
+       <th style="text-align:right;padding:8px 6px;color:var(--brown)">2025 YTD</th>
+       <th style="text-align:right;padding:8px 6px;color:var(--brown)">Proj. 2026</th>
+       <th style="text-align:right;padding:8px 6px;color:var(--brown)">Stock atual</th>
+       <th style="text-align:center;padding:8px 6px;color:var(--brown)">Estado</th>
+      </tr>
+     </thead>
+     <tbody>
+      ${topArticles.map(a=>{
+       const p=proj2026(a.q2025);
+       const r=stockRisco(embalagemContagens[a.artigo],p);
+       const dias=stockDias(embalagemContagens[a.artigo],p);
+       return `<tr style="border-bottom:1px solid var(--tan);cursor:pointer" onclick="embalagemViewMode='artigos';renderEmbalagens()">
+        <td style="padding:10px 6px"><div style="font-weight:600">${esc(a.desc)}</div><div style="font-size:11px;color:#888">${esc(a.cat)}</div></td>
+        <td style="padding:10px 6px;text-align:right">${a.q2024.toLocaleString("pt-PT")}</td>
+        <td style="padding:10px 6px;text-align:right">${a.q2025.toLocaleString("pt-PT")}</td>
+        <td style="padding:10px 6px;text-align:right;font-weight:600;color:var(--brown)">${p.toLocaleString("pt-PT")}</td>
+        <td style="padding:10px 6px;text-align:right">${embalagemContagens[a.artigo]?embalagemContagens[a.artigo].toLocaleString("pt-PT"):`<span class="muted">—</span>`}</td>
+        <td style="padding:10px 6px;text-align:center">${riscoBadge(r)}${dias?`<div style="font-size:10px;color:#888;margin-top:3px">${dias} dias</div>`:""}</td>
+       </tr>`;
+      }).join("")}
+     </tbody>
+    </table>
+   </div>
+  </div>
+ `;
+}
+
+function renderEmbalagemArtigos(el){
+ const cats=[...new Set(EMBALAGENS_DATA.map(a=>a.cat))].sort();
+ const filterCat=window._embCatFilter||"";
+ const filterSearch=window._embSearch||"";
+ const filtered=EMBALAGENS_DATA.filter(a=>{
+  if(filterCat&&a.cat!==filterCat)return false;
+  if(filterSearch&&!a.desc.toLowerCase().includes(filterSearch.toLowerCase())&&!a.artigo.toLowerCase().includes(filterSearch.toLowerCase()))return false;
+  return true;
+ });
+
+ el.innerHTML=`
+  <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;align-items:center">
+   <input id="embSearch" class="search" style="margin:0;flex:1;min-width:180px" placeholder="Pesquisar artigo..." value="${esc(filterSearch)}" oninput="window._embSearch=this.value;renderEmbalagemArtigos(document.getElementById('embalagensContent'))">
+   <select id="embCat" style="padding:11px;border:1px solid var(--tan);border-radius:8px" onchange="window._embCatFilter=this.value;renderEmbalagemArtigos(document.getElementById('embalagensContent'))">
+    <option value="">Todas as categorias</option>
+    ${cats.map(c=>`<option ${filterCat===c?"selected":""}>${esc(c)}</option>`).join("")}
+   </select>
+   <span class="muted" style="font-size:13px">${filtered.length} artigos</span>
+  </div>
+  <div style="overflow-x:auto">
+   <table style="width:100%;border-collapse:collapse;font-size:13px">
+    <thead>
+     <tr style="border-bottom:2px solid var(--tan);background:var(--cream)">
+      <th style="text-align:left;padding:10px 8px;color:var(--brown)">Artigo</th>
+      <th style="text-align:left;padding:10px 8px;color:var(--brown)">Categoria</th>
+      <th style="text-align:right;padding:10px 8px;color:var(--brown)">2024</th>
+      <th style="text-align:right;padding:10px 8px;color:var(--brown)">2025 YTD</th>
+      <th style="text-align:right;padding:10px 8px;color:var(--brown)">Proj. 2026</th>
+      <th style="text-align:right;padding:10px 8px;color:var(--brown)">Contagem atual</th>
+      <th style="text-align:center;padding:10px 8px;color:var(--brown)">Estado</th>
+      <th style="text-align:center;padding:10px 8px;color:var(--brown)">Ação</th>
+     </tr>
+    </thead>
+    <tbody id="embArtigosBody">
+     ${filtered.map(a=>{
+      const p=proj2026(a.q2025);
+      const r=stockRisco(embalagemContagens[a.artigo],p);
+      const dias=stockDias(embalagemContagens[a.artigo],p);
+      const variacao=a.q2025>0&&a.q2024>0?((a.q2025/(a.q2024/12*10)-1)*100):null;
+      return `<tr style="border-bottom:1px solid var(--tan)">
+       <td style="padding:10px 8px"><div style="font-weight:600">${esc(a.desc)}</div><div style="font-size:11px;color:#888">${esc(a.artigo)}</div></td>
+       <td style="padding:10px 8px"><span style="background:var(--tan);padding:2px 8px;border-radius:10px;font-size:11px">${esc(a.cat)}</span></td>
+       <td style="padding:10px 8px;text-align:right">${a.q2024.toLocaleString("pt-PT")}</td>
+       <td style="padding:10px 8px;text-align:right">${a.q2025.toLocaleString("pt-PT")}${variacao!==null?`<div style="font-size:10px;color:${variacao>=0?"#5E7A54":"#A8493B"}">${variacao>=0?"+":""}${variacao.toFixed(0)}% vs ano ant.</div>`:""}</td>
+       <td style="padding:10px 8px;text-align:right;font-weight:600;color:var(--brown)">${p.toLocaleString("pt-PT")}</td>
+       <td style="padding:10px 8px;text-align:right">
+        <input type="number" min="0" style="width:90px;padding:6px;border:1px solid var(--tan);border-radius:6px;text-align:right;font-size:13px"
+         value="${embalagemContagens[a.artigo]||""}"
+         placeholder="0"
+         onchange="embalagemContagens['${esc(a.artigo)}']=parseInt(this.value)||0;renderEmbalagemArtigos(document.getElementById('embalagensContent'))">
+       </td>
+       <td style="padding:10px 8px;text-align:center">${riscoBadge(r)}${dias?`<div style="font-size:10px;color:#666;margin-top:3px">${dias} dias</div>`:""}</td>
+       <td style="padding:10px 8px;text-align:center">
+        <button class="secondary" style="font-size:11px;padding:4px 10px" onclick="embalagemViewMode='orcamentos';embalagemNovoOrcPre='${esc(a.artigo)}';renderEmbalagens()">+ Orç.</button>
+       </td>
+      </tr>`;
+     }).join("")}
+    </tbody>
+   </table>
+  </div>
+  <div style="margin-top:12px;padding:12px;background:var(--cream);border-radius:8px;font-size:12px;color:#666">
+   <b>Projeção 2026:</b> calculada a partir dos consumos 2025 YTD (jan–out, 10 meses) × 12 / 10.
+   <b>Lead time assumido:</b> 30–45 dias. Alertas: &lt;30 dias = Crítico · 30–60 = Alerta · 60–90 = Atenção.
+   Insere a contagem atual para ativar os alertas de risco.
+  </div>
+ `;
+}
+
+function renderEmbalagemOrcamentos(el){
+ const preArtigo=typeof window.embalagemNovoOrcPre==="string"?window.embalagemNovoOrcPre:"";
+ window.embalagemNovoOrcPre=undefined;
+
+ el.innerHTML=`
+  <div class="panel" style="margin-bottom:20px">
+   <h3 style="margin-bottom:14px">Novo Pedido de Orçamento</h3>
+   <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:10px">
+    <div>
+     <label style="font-size:12px;color:#666;display:block;margin-bottom:4px">Artigo</label>
+     <select id="orcArtigo" style="width:100%;padding:10px;border:1px solid var(--tan);border-radius:8px;font-size:13px">
+      <option value="">Selecionar artigo...</option>
+      ${EMBALAGENS_DATA.map(a=>`<option value="${esc(a.artigo)}" ${preArtigo===a.artigo?"selected":""}>${esc(a.desc)}</option>`).join("")}
+     </select>
+    </div>
+    <div>
+     <label style="font-size:12px;color:#666;display:block;margin-bottom:4px">Fornecedor</label>
+     <input id="orcFornecedor" list="fornecedoresList" placeholder="Nome do fornecedor" style="width:100%;padding:10px;border:1px solid var(--tan);border-radius:8px;font-size:13px">
+     <datalist id="fornecedoresList">
+      ${EMBALAGENS_FORNECEDORES.map(f=>`<option value="${esc(f.nome)}">`).join("")}
+      <option value="Outro">
+     </datalist>
+    </div>
+    <div>
+     <label style="font-size:12px;color:#666;display:block;margin-bottom:4px">Quantidade</label>
+     <input id="orcQtd" type="number" min="1" placeholder="Ex: 10000" style="width:100%;padding:10px;border:1px solid var(--tan);border-radius:8px;font-size:13px">
+    </div>
+    <div>
+     <label style="font-size:12px;color:#666;display:block;margin-bottom:4px">Valor Orçamentado (€)</label>
+     <input id="orcValor" type="number" min="0" step="0.01" placeholder="Ex: 450.00" style="width:100%;padding:10px;border:1px solid var(--tan);border-radius:8px;font-size:13px">
+    </div>
+    <div>
+     <label style="font-size:12px;color:#666;display:block;margin-bottom:4px">Estado</label>
+     <select id="orcEstado" style="width:100%;padding:10px;border:1px solid var(--tan);border-radius:8px;font-size:13px">
+      <option value="pedido">Pedido enviado</option>
+      <option value="em-negociacao">Em negociação</option>
+      <option value="adjudicado">Adjudicado</option>
+      <option value="recusado">Recusado</option>
+     </select>
+    </div>
+    <div>
+     <label style="font-size:12px;color:#666;display:block;margin-bottom:4px">Observações</label>
+     <input id="orcNota" placeholder="Notas, contraproposta, etc." style="width:100%;padding:10px;border:1px solid var(--tan);border-radius:8px;font-size:13px">
+    </div>
+   </div>
+   <button class="primary" onclick="addEmbalagemOrcamento()">Registar Orçamento</button>
+  </div>
+
+  <div class="panel">
+   <h3 style="margin-bottom:14px">Histórico de Orçamentos (${embalagemOrcamentos.length})</h3>
+   ${embalagemOrcamentos.length===0?`<p class="muted" style="padding:20px 0;text-align:center">Nenhum orçamento registado ainda.<br>Usa o formulário acima para começar a acompanhar as negociações.</p>`:`
+   <div style="overflow-x:auto">
+    <table style="width:100%;border-collapse:collapse;font-size:13px">
+     <thead>
+      <tr style="border-bottom:2px solid var(--tan);background:var(--cream)">
+       <th style="text-align:left;padding:8px">Data</th>
+       <th style="text-align:left;padding:8px">Artigo</th>
+       <th style="text-align:left;padding:8px">Fornecedor</th>
+       <th style="text-align:right;padding:8px">Qtd</th>
+       <th style="text-align:right;padding:8px">Valor €</th>
+       <th style="text-align:right;padding:8px">€/un</th>
+       <th style="text-align:center;padding:8px">Estado</th>
+       <th style="padding:8px">Notas</th>
+       <th style="padding:8px"></th>
+      </tr>
+     </thead>
+     <tbody>
+      ${embalagemOrcamentos.map((o,i)=>{
+       const art=EMBALAGENS_DATA.find(a=>a.artigo===o.artigo);
+       const estadoCor={pedido:"#8C6F58",ajudicado:"#5E7A54","em-negociacao":"#C67C2A",recusado:"#A8493B"};
+       const cuUn=o.valor&&o.qtd?(o.valor/o.qtd).toFixed(4):"—";
+       return `<tr style="border-bottom:1px solid var(--tan)">
+        <td style="padding:8px;white-space:nowrap">${o.data}</td>
+        <td style="padding:8px">${art?esc(art.desc):esc(o.artigo)}</td>
+        <td style="padding:8px">${esc(o.fornecedor)}</td>
+        <td style="padding:8px;text-align:right">${o.qtd?o.qtd.toLocaleString("pt-PT"):"—"}</td>
+        <td style="padding:8px;text-align:right">${o.valor?o.valor.toLocaleString("pt-PT",{style:"currency",currency:"EUR"}):"—"}</td>
+        <td style="padding:8px;text-align:right;font-size:11px;color:#666">${cuUn}</td>
+        <td style="padding:8px;text-align:center"><span style="background:${estadoCor[o.estado]||"#888"};color:#fff;padding:2px 8px;border-radius:12px;font-size:11px">${esc(o.estado)}</span></td>
+        <td style="padding:8px;font-size:12px;color:#666;max-width:200px;overflow:hidden;text-overflow:ellipsis">${esc(o.nota||"")}</td>
+        <td style="padding:8px"><button class="secondary" style="font-size:11px;padding:3px 8px;color:#A8493B" onclick="embalagemOrcamentos.splice(${i},1);renderEmbalagemOrcamentos(document.getElementById('embalagensContent'))">✕</button></td>
+       </tr>`;
+      }).join("")}
+     </tbody>
+    </table>
+   </div>
+   `}
+  </div>
+ `;
+}
+
+function addEmbalagemOrcamento(){
+ const artigo=document.getElementById("orcArtigo").value;
+ const fornecedor=document.getElementById("orcFornecedor").value.trim();
+ const qtd=parseInt(document.getElementById("orcQtd").value)||null;
+ const valor=parseFloat(document.getElementById("orcValor").value)||null;
+ const estado=document.getElementById("orcEstado").value;
+ const nota=document.getElementById("orcNota").value.trim();
+ if(!artigo||!fornecedor){alert("Artigo e fornecedor são obrigatórios.");return;}
+ const data=new Date().toLocaleDateString("pt-PT");
+ embalagemOrcamentos.unshift({artigo,fornecedor,qtd,valor,estado,nota,data});
+ renderEmbalagemOrcamentos(document.getElementById("embalagensContent"));
+}
+
+function renderEmbalagemFornecedores(el){
+ el.innerHTML=`
+  <div class="panel" style="margin-bottom:20px">
+   <h3 style="margin-bottom:6px">Fornecedores Conhecidos</h3>
+   <p style="font-size:13px;color:#666;margin-bottom:16px">Fornecedores com quem a Ti'Piedade já trabalhou ou pediu cotação. Para sugestões com análise de mercado, usa o separador <b>Apoio IA</b>.</p>
+   <div class="cards" style="grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px">
+    ${EMBALAGENS_FORNECEDORES.map(f=>`
+    <div class="panel" style="border:1px solid var(--tan)">
+     <div style="font-size:16px;font-weight:700;color:var(--brown);margin-bottom:4px">${esc(f.nome)}</div>
+     <div style="font-size:12px;color:#888;margin-bottom:8px">${esc(f.especialidade)}</div>
+     <div style="font-size:13px;margin-bottom:6px">${esc(f.nota)}</div>
+     ${f.website&&f.website!=="—"?`<div style="font-size:12px"><a href="https://${esc(f.website)}" target="_blank" style="color:var(--brown)">${esc(f.website)}</a></div>`:""}
+     <div style="margin-top:10px;display:flex;gap:6px">
+      <button class="primary" style="font-size:12px" onclick="embalagemViewMode='orcamentos';renderEmbalagens()">Pedir orçamento</button>
+      <button class="secondary" style="font-size:12px" onclick="document.getElementById('embAIInput').value='Pesquisa o fornecedor ${esc(f.nome)} — qualidade, preços, avaliações de clientes, posição no mercado de embalagens alimentares em Portugal. Resume numa análise de qualidade vs preço.';embalagemViewMode='assistente';renderEmbalagens()">Ver análise IA →</button>
+     </div>
+    </div>
+    `).join("")}
+   </div>
+  </div>
+
+  <div class="panel">
+   <h3 style="margin-bottom:6px">Sugestões do Mercado</h3>
+   <p style="font-size:13px;color:#666;margin-bottom:14px">Fornecedores alternativos relevantes para embalagens alimentares premium em Portugal, identificados a partir da concorrência do sector:</p>
+   <div class="cards" style="grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px">
+    ${[
+     {nome:"Colpac / Sabert",area:"UK/EU",esp:"Caixas cartão food-grade premium, embalagens para pastelaria e confeitaria",nota:"Usado por marcas premium europeias — entrada no mercado português por distribuidores"},
+     {nome:"Smurfit Kappa Portugal",area:"Portugal",esp:"Embalagens cartão offset, soluções personalizadas em grande volume",nota:"Líder ibérico — interessante para volumes elevados com personalização"},
+     {nome:"DS Smith Portugal",area:"Portugal",esp:"Embalagens cartão ondulado e offset, soluções sustentáveis",nota:"Forte em sustentabilidade — bom diferenciador para certificações SGS"},
+     {nome:"Gráfica Cromo",area:"Portugal",esp:"Embalagens alimentares com impressão offset de alta qualidade",nota:"Nacional — prazos mais curtos, bom para edições limitadas"},
+     {nome:"Fibreform / Neopak",area:"Portugal/ES",esp:"Embalagens moldadas, bases e separadores para pastelaria",nota:"Especialista em bases e interiores — alternativa às bases de papel vegetal"},
+    ].map(f=>`
+    <div class="panel" style="border:1px solid var(--tan)">
+     <div style="font-size:16px;font-weight:700;color:var(--brown);margin-bottom:2px">${esc(f.nome)}</div>
+     <div style="font-size:11px;color:#888;margin-bottom:6px">${esc(f.area)}</div>
+     <div style="font-size:12px;color:#555;margin-bottom:6px">${esc(f.esp)}</div>
+     <div style="font-size:13px">${esc(f.nota)}</div>
+     <button class="secondary" style="margin-top:10px;font-size:12px" onclick="document.getElementById('embAIInput').value='Pesquisa o fornecedor ${esc(f.nome)} — qualidade do produto, preços típicos para pastelaria artesanal, fiabilidade de entrega, alternativas e avaliações do setor alimentar. Resume focando em qualidade e preço para uma marca premium como a Ti\\'Piedade.';embalagemViewMode='assistente';renderEmbalagens()">Analisar com IA →</button>
+    </div>
+    `).join("")}
+   </div>
+  </div>
+ `;
+}
+
+let embalagemAIHistory=[];
+
+async function renderEmbalagemAssistente(el){
+ const sugestoes=[
+  "Quais os melhores fornecedores de caixas offset para pastelaria artesanal em Portugal?",
+  "Compara Pentapack vs Smurfit Kappa para as nossas caixas originais de 500gr — qualidade e preço",
+  "Qual é o custo médio por unidade de uma caixa cartão offset com impressão 4 cores em Portugal?",
+  "Que argumentos usar para negociar melhor preço na renovação do contrato com a Pentapack?",
+  "Sugere fornecedores de papel vegetal para bases de pastelaria em Portugal e Europa",
+  "Que volume de encomenda justifica personalização de embalagens vs embalagens stock?"
+ ];
+
+ el.innerHTML=`
+  <div class="panel">
+   <h3 style="margin-bottom:4px">🤖 Apoio à Negociação com Fornecedores</h3>
+   <p style="font-size:13px;color:#666;margin-bottom:16px">
+    Pesquisa de mercado, análise de fornecedores, sugestão de alternativas, apoio à negociação de preços.
+    Foco na indústria alimentar — qualidade e preço como prioridades da Ti'Piedade.
+   </p>
+   <div id="embAIChat" style="min-height:100px;max-height:45vh;overflow-y:auto;margin-bottom:14px">
+    ${embalagemAIHistory.length?embalagemAIHistory.map(m=>`
+     <div style="margin-bottom:14px">
+      <div style="font-weight:600;color:var(--brown);font-size:13px;margin-bottom:3px">${m.role==="user"?"Milene / Tu":"Assistente"}</div>
+      <div style="white-space:pre-wrap;font-size:14px;line-height:1.5">${esc(m.text)}</div>
+     </div>`).join(""):`
+    <div style="padding:10px 0">
+     <p class="muted" style="margin-bottom:12px">Sugestões de perguntas:</p>
+     <div style="display:flex;flex-direction:column;gap:8px">
+      ${sugestoes.map(q=>`<button class="secondary emb-suggest" style="text-align:left;font-size:13px;line-height:1.4">${esc(q)}</button>`).join("")}
+     </div>
+    </div>`}
+   </div>
+   <div style="display:flex;gap:8px">
+    <input id="embAIInput" class="search" style="margin:0;flex:1" placeholder="Pergunta sobre fornecedores, preços, negociação...">
+    <button id="embAISend" class="primary" onclick="sendEmbalagemAI()">Perguntar</button>
+   </div>
+  </div>
+ `;
+
+ document.getElementById("embAIInput").addEventListener("keydown",e=>{if(e.key==="Enter")sendEmbalagemAI();});
+ document.querySelectorAll(".emb-suggest").forEach(b=>b.addEventListener("click",()=>{
+  document.getElementById("embAIInput").value=b.textContent;
+  sendEmbalagemAI();
+ }));
+
+ // Scroll chat to bottom
+ const chat=document.getElementById("embAIChat");
+ if(chat)chat.scrollTop=chat.scrollHeight;
+}
+
+async function sendEmbalagemAI(){
+ const input=document.getElementById("embAIInput");
+ if(!input)return;
+ const question=input.value.trim();
+ if(!question)return;
+
+ // Build context about Ti'Piedade packaging
+ const ctx=`Contexto: Pão de Ló Ti'Piedade, marca portuguesa de pastelaria artesanal premium.
+Gerem embalagens para os seus produtos (caixas, bases, etiquetas, sacos, filmes).
+Fornecedores atuais: Pentapack, Cartonarte, LiderBox, Vouguembal, Calheiros.
+Prioridades: qualidade > preço. Lead times típicos: 30-45 dias.
+Volumes altos: ex. Caixa Original 500gr ~196.000 unidades em 10 meses de 2025.
+Pergunta da equipa de qualidade: ${question}`;
+
+ embalagemAIHistory.push({role:"user",text:question});
+ input.value="";
+ input.disabled=true;
+ document.getElementById("embAISend").disabled=true;
+
+ // Re-render to show user message
+ const el=document.getElementById("embalagensContent");
+ renderEmbalagemAssistente(el);
+
+ embalagemAIHistory.push({role:"assistant",text:"A pesquisar e analisar..."});
+ renderEmbalagemAssistente(el);
+
+ try{
+  const{data,error}=await db.functions.invoke("ask-inventory",{body:{question:ctx}});
+  if(error){
+   let detail=error.message;
+   try{if(error.context&&typeof error.context.json==="function"){const body=await error.context.json();if(body?.error)detail=body.error;}}catch(_){}
+   throw new Error(detail);
+  }
+  if(data?.error)throw new Error(data.error);
+  embalagemAIHistory[embalagemAIHistory.length-1]={role:"assistant",text:data.answer};
+ }catch(e){
+  embalagemAIHistory[embalagemAIHistory.length-1]={role:"assistant",text:"⚠️ Não consegui responder: "+e.message+"\n\nPode reformular a pergunta ou tentar mais tarde."};
+ }
+ renderEmbalagemAssistente(document.getElementById("embalagensContent"));
+}
+
+// ===== END EMBALAGENS TAB =====
 
 boot();
 if("serviceWorker" in navigator){window.addEventListener("load",()=>{navigator.serviceWorker.register("sw.js").catch(e=>console.warn("Service worker não registado:",e))})}
