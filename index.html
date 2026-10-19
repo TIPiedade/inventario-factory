@@ -4032,10 +4032,12 @@ function renderEmbalagensDashboard(el){
  const atencao=EMBALAGENS_DATA.filter(a=>stockRisco(embalagemContagens[a.artigo],proj2026(a.q2025))==="atencao");
  const orcPendentes=embalagemOrcamentos.filter(o=>o.estado==="pedido"||o.estado==="em-negociacao").length;
 
+ // Mostrar artigos com contagem registada, ordenados por stock (maior primeiro)
+ // Se não houver dados de consumo (q2025=0), mostrar todos com contagem
  const topArticles=EMBALAGENS_DATA
-  .filter(a=>a.q2025>0)
-  .sort((a,b)=>proj2026(b.q2025)-proj2026(a.q2025))
-  .slice(0,8);
+  .filter(a=>a.artigo in embalagemContagens)
+  .sort((a,b)=>(embalagemContagens[b.artigo]||0)-(embalagemContagens[a.artigo]||0))
+  .slice(0,10);
 
  const invDateStr=embalagemLastInventarioDate?new Date(embalagemLastInventarioDate).toLocaleDateString("pt-PT",{day:"2-digit",month:"long",year:"numeric"}):"desconhecida";
  const dbgBlock="";
@@ -4091,41 +4093,40 @@ function renderEmbalagensDashboard(el){
   `:""}
 
   <div class="panel">
-   <h3 style="margin-bottom:14px">Top Artigos por Volume Estimado 2026</h3>
+   <h3 style="margin-bottom:6px">Artigos com Contagem Registada</h3>
+   <p style="font-size:12px;color:#888;margin-bottom:14px">Inventário de <b>${invDateStr}</b> · ordenado por stock (maior primeiro) · clica para ver todos os artigos</p>
+   ${topArticles.length===0?`<div style="text-align:center;padding:32px;color:#aaa;font-size:14px">Nenhum artigo com contagem registada ainda.<br><span style="font-size:12px">Os dados carregam automaticamente do inventário mais recente.</span></div>`:`
    <div style="overflow-x:auto">
     <table style="width:100%;border-collapse:collapse;font-size:13px">
      <thead>
       <tr style="border-bottom:2px solid var(--tan)">
        <th style="text-align:left;padding:8px 6px;color:var(--brown)">Artigo</th>
-       <th style="text-align:right;padding:8px 6px;color:var(--brown)">2024</th>
-       <th style="text-align:right;padding:8px 6px;color:var(--brown)">2025 YTD</th>
-       <th style="text-align:right;padding:8px 6px;color:var(--brown)">Proj. 2026</th>
+       <th style="text-align:left;padding:8px 6px;color:var(--brown)">Categoria</th>
        <th style="text-align:right;padding:8px 6px;color:var(--brown)">Stock atual</th>
        <th style="text-align:center;padding:8px 6px;color:var(--brown)">Estado</th>
       </tr>
      </thead>
      <tbody>
       ${topArticles.map(a=>{
-       const p=proj2026(a.q2025);
-       const r=stockRisco(embalagemContagens[a.artigo],p);
-       const dias=stockDias(embalagemContagens[a.artigo],p);
+       const stock=embalagemContagens[a.artigo]||0;
+       const r=stockRisco(stock,proj2026(a.q2025));
        return `<tr style="border-bottom:1px solid var(--tan);cursor:pointer" onclick="embalagemViewMode='artigos';renderEmbalagens()">
-        <td style="padding:10px 6px"><div style="font-weight:600">${esc(a.desc)}</div><div style="font-size:11px;color:#888">${esc(a.cat)}</div></td>
-        <td style="padding:10px 6px;text-align:right">${a.q2024.toLocaleString("pt-PT")}</td>
-        <td style="padding:10px 6px;text-align:right">${a.q2025.toLocaleString("pt-PT")}</td>
-        <td style="padding:10px 6px;text-align:right;font-weight:600;color:var(--brown)">${p.toLocaleString("pt-PT")}</td>
-        <td style="padding:10px 6px;text-align:right">${embalagemContagens[a.artigo]?embalagemContagens[a.artigo].toLocaleString("pt-PT"):`<span class="muted">—</span>`}</td>
-        <td style="padding:10px 6px;text-align:center">${riscoBadge(r)}${dias?`<div style="font-size:10px;color:#888;margin-top:3px">${dias} dias</div>`:""}</td>
+        <td style="padding:10px 6px"><div style="font-weight:600">${esc(a.desc)}</div><div style="font-size:11px;color:#888">${esc(a.artigo)}</div></td>
+        <td style="padding:10px 6px"><span style="background:var(--tan);padding:2px 8px;border-radius:10px;font-size:11px">${esc(a.cat)}</span></td>
+        <td style="padding:10px 6px;text-align:right;font-weight:700;font-size:15px;color:var(--brown)">${stock.toLocaleString("pt-PT")}</td>
+        <td style="padding:10px 6px;text-align:center">${riscoBadge(r)}</td>
        </tr>`;
       }).join("")}
      </tbody>
     </table>
    </div>
+   `}
   </div>
  `;
 }
 
 function renderEmbalagemArtigos(el){
+ const invDateStr=embalagemLastInventarioDate?new Date(embalagemLastInventarioDate).toLocaleDateString("pt-PT",{day:"2-digit",month:"long",year:"numeric"}):"—";
  const cats=[...new Set(EMBALAGENS_DATA.map(a=>a.cat))].sort();
  const filterCat=window._embCatFilter||"";
  const filterSearch=window._embSearch||"";
@@ -4150,42 +4151,27 @@ function renderEmbalagemArtigos(el){
      <tr style="border-bottom:2px solid var(--tan);background:var(--cream)">
       <th style="text-align:left;padding:10px 8px;color:var(--brown)">Artigo</th>
       <th style="text-align:left;padding:10px 8px;color:var(--brown)">Categoria</th>
-      <th style="text-align:right;padding:10px 8px;color:var(--brown)">Consumo/mês</th>
-      <th style="text-align:right;padding:10px 8px;color:var(--brown)">Previsão nov–dez</th>
-      <th style="text-align:right;padding:10px 8px;color:var(--brown)">Stock (set. 2026)</th>
-      <th style="text-align:right;padding:10px 8px;color:var(--brown)">Meses de stock</th>
+      <th style="text-align:right;padding:10px 8px;color:var(--brown)">Stock atual</th>
       <th style="text-align:center;padding:10px 8px;color:var(--brown)">Estado</th>
       <th style="text-align:center;padding:10px 8px;color:var(--brown)">Ação</th>
      </tr>
     </thead>
     <tbody id="embArtigosBody">
      ${filtered.map(a=>{
-      const mediasMes=Math.round(a.q2025/10); // consumo médio mensal (jan–out = 10 meses)
-      const prevNovDez=mediasMes*2; // previsão nov + dez
       const stock=embalagemContagens[a.artigo]||0;
       const temStock=a.artigo in embalagemContagens;
-      const meses=mediasMes>0&&temStock?+(stock/mediasMes).toFixed(1):null;
-      const dias=meses!==null?Math.round(meses*30):null;
       const r=stockRisco(stock,proj2026(a.q2025));
-      // cor dos meses de stock
-      const mesesColor=meses===null?"#999":meses<1?"#A8493B":meses<2?"#C67C2A":meses<3?"#8C6F58":"#5E7A54";
-      const ruptura=meses!==null&&meses<(2/12*30/30); // rutura se <15 dias
-      return `<tr style="border-bottom:1px solid var(--tan)${ruptura?";background:#FDF0EF":""}">
+      return `<tr style="border-bottom:1px solid var(--tan)">
        <td style="padding:10px 8px"><div style="font-weight:600">${esc(a.desc)}</div><div style="font-size:11px;color:#888">${esc(a.artigo)}</div></td>
        <td style="padding:10px 8px"><span style="background:var(--tan);padding:2px 8px;border-radius:10px;font-size:11px">${esc(a.cat)}</span></td>
-       <td style="padding:10px 8px;text-align:right">${mediasMes>0?mediasMes.toLocaleString("pt-PT"):'<span style="color:#aaa">—</span>'}</td>
-       <td style="padding:10px 8px;text-align:right;color:#8C6F58">${prevNovDez>0?prevNovDez.toLocaleString("pt-PT"):'<span style="color:#aaa">—</span>'}</td>
        <td style="padding:10px 8px;text-align:right">
         ${temStock
-         ?`<b style="font-size:14px">${stock.toLocaleString("pt-PT")}</b><div style="font-size:10px;color:#999">${invDateStr}</div>`
+         ?`<b style="font-size:14px;color:var(--brown)">${stock.toLocaleString("pt-PT")}</b><div style="font-size:10px;color:#999">${invDateStr}</div>`
          :`<input type="number" min="0" style="width:80px;padding:6px;border:1px solid var(--tan);border-radius:6px;text-align:right;font-size:13px"
            value="" placeholder="inserir"
            onchange="embalagemContagens['${esc(a.artigo)}']=parseInt(this.value)||0;saveEmbalagemContagem('${esc(a.artigo)}',parseInt(this.value)||0,currentUser?.nome||null);renderEmbalagemArtigos(document.getElementById('embalagensContent'))"
            oninput="this.style.borderColor='var(--brown)'">`
         }
-       </td>
-       <td style="padding:10px 8px;text-align:right;font-weight:700;font-size:15px;color:${mesesColor}">
-        ${meses===null?'<span style="color:#aaa;font-size:13px;font-weight:400">—</span>':meses<1?`<span>${(meses*30).toFixed(0)} dias</span>`:`${meses} meses`}
        </td>
        <td style="padding:10px 8px;text-align:center">${riscoBadge(r)}</td>
        <td style="padding:10px 8px;text-align:center">
@@ -4197,9 +4183,7 @@ function renderEmbalagemArtigos(el){
    </table>
   </div>
   <div style="margin-top:12px;padding:12px;background:var(--cream);border-radius:8px;font-size:12px;color:#666">
-   <b>Consumo/mês:</b> média dos consumos jan–out 2025 (10 meses). <b>Previsão nov–dez:</b> consumo médio × 2 meses restantes.
-   <b>Meses de stock:</b> stock ÷ consumo médio mensal — verde ≥3 meses · laranja 1–3 · vermelho &lt;1 mês.
-   ${embalagemLastInventarioDate?`Stock do inventário de <b>${new Date(embalagemLastInventarioDate).toLocaleDateString("pt-PT",{day:"2-digit",month:"long",year:"numeric"})}</b>. Artigos sem contagem: insere manualmente.`:"Sem inventário registado."}
+   ${embalagemLastInventarioDate?`Stock carregado do inventário de <b>${new Date(embalagemLastInventarioDate).toLocaleDateString("pt-PT",{day:"2-digit",month:"long",year:"numeric"})}</b>. Artigos sem contagem podem ser inseridos manualmente.`:"Sem inventário registado — os stocks são carregados automaticamente do inventário mais recente."}
   </div>
  `;
 }
