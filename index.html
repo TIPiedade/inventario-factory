@@ -3800,6 +3800,106 @@ let embalagemHistory=[];
 let embalagemContagens={};
 let embalagemOrcamentos=[];
 let embalagemViewMode="dashboard"; // dashboard | artigos | orcamentos | fornecedores
+let embalagemLoading=false;
+
+// ─── Supabase: carregar contagens e orçamentos ───────────────────────────────
+async function loadEmbalagemData(){
+ embalagemLoading=true;
+ try{
+  // 1. Contagens manuais da tabela packaging_stock
+  const{data:stockRows,error:e1}=await db.from("packaging_stock").select("artigo,contagem,fonte,updated_at").order("updated_at",{ascending:false});
+  if(!e1&&stockRows){
+   stockRows.forEach(r=>{
+    if(!(r.artigo in embalagemContagens)||r.fonte==="manual"){
+     embalagemContagens[r.artigo]=r.contagem;
+    }
+   });
+  }
+  // 2. Orçamentos da tabela packaging_orders
+  const{data:ordRows,error:e2}=await db.from("packaging_orders").select("*").order("created_at",{ascending:false});
+  if(!e2&&ordRows){
+   embalagemOrcamentos=ordRows.map(r=>({
+    id:r.id,artigo:r.artigo,fornecedor:r.fornecedor,
+    qtd:r.qtd,valor:r.valor,estado:r.estado,
+    nota:r.nota||"",data:new Date(r.created_at).toLocaleDateString("pt-PT"),
+    pdf_url:r.pdf_url||null,pdf_name:r.pdf_name||null
+   }));
+  }
+ }catch(err){console.warn("Erro a carregar dados embalagens:",err);}
+ embalagemLoading=false;
+}
+
+async function saveEmbalagemContagem(artigo,contagem,updatedBy){
+ try{
+  await db.from("packaging_stock").upsert({artigo,contagem,fonte:"manual",updated_by:updatedBy||null,updated_at:new Date().toISOString()},{onConflict:"artigo"});
+ }catch(err){console.warn("Erro ao guardar contagem:",err);}
+}
+
+async function deleteEmbalagemOrcamento(id){
+ if(!confirm("Eliminar este orçamento?"))return;
+ try{
+  if(id&&typeof id==="number"){await db.from("packaging_orders").delete().eq("id",id);}
+  embalagemOrcamentos=embalagemOrcamentos.filter(o=>o.id!==id);
+  renderEmbalagemOrcamentos(document.getElementById("embalagensContent"));
+ }catch(err){console.warn("Erro ao eliminar orçamento:",err);}
+}
+
+async function uploadPdfOrcamento(file){
+ const btnEl=document.getElementById("orcPdfStatus");
+ if(btnEl)btnEl.textContent="A carregar PDF...";
+ try{
+  const supabaseUrl="https://cngnoirjlpfpipbmlens.supabase.co";
+  const anonKey="sb_publishable_qO1UjfG_RDNFTz2G6LM9rA_qpk6zHVx";
+  const fileName=`orcamentos/${Date.now()}_${file.name.replace(/[^a-zA-Z0-9._-]/g,"_")}`;
+  const res=await fetch(`${supabaseUrl}/storage/v1/object/packaging-pdfs/${fileName}`,{
+   method:"POST",
+   headers:{"Authorization":`Bearer ${anonKey}`,"Content-Type":file.type||"application/pdf","x-upsert":"true"},
+   body:file
+  });
+  if(!res.ok)throw new Error("Upload falhou: "+res.status);
+  const publicUrl=`${supabaseUrl}/storage/v1/object/public/packaging-pdfs/${fileName}`;
+  if(btnEl){btnEl.textContent="✓ PDF carregado";btnEl.style.color="var(--success)";}
+  // Guardar referência no input oculto
+  document.getElementById("orcPdfUrl").value=publicUrl;
+  document.getElementById("orcPdfName").value=file.name;
+  // Analisar PDF com IA
+  if(confirm("PDF carregado! Quer que a IA analise o orçamento agora?")){
+   await analisarPdfOrcamento(file,document.getElementById("orcArtigo").value);
+  }
+  return{url:publicUrl,name:file.name};
+ }catch(err){
+  console.warn("Erro upload PDF:",err);
+  if(btnEl){btnEl.textContent="Erro no upload";btnEl.style.color="var(--danger)";}
+  return null;
+ }
+}
+
+async function analisarPdfOrcamento(file,artigo){
+ // Ler o PDF como texto usando FileReader (extrai texto se for PDF com texto embutido)
+ const area=document.getElementById("embAIPdfAnalysis");
+ if(area)area.innerHTML=`<div class="panel" style="margin-top:12px;background:#f9f5f0"><p style="color:var(--brown-light);font-size:13px">A analisar PDF com IA...</p></div>`;
+ try{
+  const reader=new FileReader();
+  const text=await new Promise((res,rej)=>{reader.onload=e=>res(e.target.result);reader.onerror=rej;reader.readAsText(file);});
+  // Limitar para não exceder limites da API
+  const sample=text.slice(0,3000);
+  const art=EMBALAGENS_DATA.find(a=>a.artigo===artigo);
+  const ctx=`Contexto: Pão de Ló Ti'Piedade, marca de pastelaria artesanal premium.
+  Artigo em análise: ${art?art.desc:artigo} (código: ${artigo}).
+  Consumo 2025 YTD: ${art?art.q2025.toLocaleString("pt-PT"):""} unidades. Projeção 2026: ${art?proj2026(art.q2025).toLocaleString("pt-PT"):""} unidades.
+  Analisa este orçamento de fornecedor. Extrai: fornecedor, preço unitário, prazo de entrega, condições de pagamento, quantidade mínima. Avalia se o preço é competitivo para o mercado português de embalagens alimentares premium. Recomenda aceitar/negociar/recusar.
+  Texto do PDF: ${sample}`;
+  const{data,error}=await db.functions.invoke("ask-inventory",{body:{question:ctx}});
+  if(area){
+   area.innerHTML=`<div class="panel" style="margin-top:12px;background:#f9f5f0;border-left:3px solid var(--brown)">
+    <div style="font-size:12px;font-weight:600;color:var(--brown);margin-bottom:8px">🤖 Análise IA do Orçamento</div>
+    <div style="font-size:13px;line-height:1.6;white-space:pre-wrap">${esc(data?.answer||"Não foi possível analisar o PDF.")}</div>
+   </div>`;
+  }
+ }catch(err){
+  if(area)area.innerHTML=`<div class="panel" style="margin-top:12px;background:#fff5f5"><p style="color:var(--danger);font-size:13px">Erro na análise: ${esc(err.message)}</p></div>`;
+ }
+}
 
 function proj2026(q2025){
  // Project 2026 based on 2025 YTD (Jan–Oct = 10 months) → annualized
@@ -3837,8 +3937,9 @@ function riscoBadge(r){
 
 async function showEmbalagens(){
  embalagemViewMode="dashboard";
- app.innerHTML=nav()+'<div id="embalagensRoot"></div>';
+ app.innerHTML=nav()+'<div id="embalagensRoot"><div style="padding:40px;text-align:center;color:var(--brown-light)"><div style="font-size:32px;margin-bottom:12px">📦</div><p>A carregar dados de embalagens...</p></div></div>';
  bindNav();
+ await loadEmbalagemData();
  renderEmbalagens();
 }
 
@@ -4026,7 +4127,8 @@ function renderEmbalagemArtigos(el){
         <input type="number" min="0" style="width:90px;padding:6px;border:1px solid var(--tan);border-radius:6px;text-align:right;font-size:13px"
          value="${embalagemContagens[a.artigo]||""}"
          placeholder="0"
-         onchange="embalagemContagens['${esc(a.artigo)}']=parseInt(this.value)||0;renderEmbalagemArtigos(document.getElementById('embalagensContent'))">
+         onchange="embalagemContagens['${esc(a.artigo)}']=parseInt(this.value)||0;saveEmbalagemContagem('${esc(a.artigo)}',parseInt(this.value)||0,currentUser?.nome||null);renderEmbalagemArtigos(document.getElementById('embalagensContent'))"
+         oninput="this.style.borderColor='var(--brown)'">
        </td>
        <td style="padding:10px 8px;text-align:center">${riscoBadge(r)}${dias?`<div style="font-size:10px;color:#666;margin-top:3px">${dias} dias</div>`:""}</td>
        <td style="padding:10px 8px;text-align:center">
@@ -4090,7 +4192,20 @@ function renderEmbalagemOrcamentos(el){
      <input id="orcNota" placeholder="Notas, contraproposta, etc." style="width:100%;padding:10px;border:1px solid var(--tan);border-radius:8px;font-size:13px">
     </div>
    </div>
-   <button class="primary" onclick="addEmbalagemOrcamento()">Registar Orçamento</button>
+   <div style="margin-top:10px;padding:12px;background:var(--cream);border-radius:8px;border:1px dashed var(--tan)">
+    <label style="font-size:12px;color:#666;display:block;margin-bottom:6px">📎 Anexar PDF do orçamento (opcional)</label>
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+     <input type="file" id="orcPdfFile" accept=".pdf,application/pdf" style="font-size:13px"
+      onchange="if(this.files[0])uploadPdfOrcamento(this.files[0])">
+     <span id="orcPdfStatus" style="font-size:12px;color:var(--brown-light)"></span>
+    </div>
+    <input type="hidden" id="orcPdfUrl">
+    <input type="hidden" id="orcPdfName">
+    <div id="embAIPdfAnalysis"></div>
+   </div>
+   <div style="margin-top:12px">
+    <button id="orcSubmitBtn" class="primary" onclick="addEmbalagemOrcamento()">Registar Orçamento</button>
+   </div>
   </div>
 
   <div class="panel">
@@ -4124,8 +4239,8 @@ function renderEmbalagemOrcamentos(el){
         <td style="padding:8px;text-align:right">${o.valor?o.valor.toLocaleString("pt-PT",{style:"currency",currency:"EUR"}):"—"}</td>
         <td style="padding:8px;text-align:right;font-size:11px;color:#666">${cuUn}</td>
         <td style="padding:8px;text-align:center"><span style="background:${estadoCor[o.estado]||"#888"};color:#fff;padding:2px 8px;border-radius:12px;font-size:11px">${esc(o.estado)}</span></td>
-        <td style="padding:8px;font-size:12px;color:#666;max-width:200px;overflow:hidden;text-overflow:ellipsis">${esc(o.nota||"")}</td>
-        <td style="padding:8px"><button class="secondary" style="font-size:11px;padding:3px 8px;color:#A8493B" onclick="embalagemOrcamentos.splice(${i},1);renderEmbalagemOrcamentos(document.getElementById('embalagensContent'))">✕</button></td>
+        <td style="padding:8px;font-size:12px;color:#666;max-width:200px">${esc(o.nota||"")}${o.pdf_url?`<br><a href="${esc(o.pdf_url)}" target="_blank" style="color:var(--brown);font-size:11px">📄 ${esc(o.pdf_name||"PDF")}</a>`:""}</td>
+        <td style="padding:8px"><button class="secondary" style="font-size:11px;padding:3px 8px;color:#A8493B" onclick="deleteEmbalagemOrcamento(${o.id||"null"})">✕</button></td>
        </tr>`;
       }).join("")}
      </tbody>
@@ -4136,16 +4251,29 @@ function renderEmbalagemOrcamentos(el){
  `;
 }
 
-function addEmbalagemOrcamento(){
+async function addEmbalagemOrcamento(){
  const artigo=document.getElementById("orcArtigo").value;
  const fornecedor=document.getElementById("orcFornecedor").value.trim();
  const qtd=parseInt(document.getElementById("orcQtd").value)||null;
  const valor=parseFloat(document.getElementById("orcValor").value)||null;
  const estado=document.getElementById("orcEstado").value;
  const nota=document.getElementById("orcNota").value.trim();
+ const pdf_url=document.getElementById("orcPdfUrl")?.value||null;
+ const pdf_name=document.getElementById("orcPdfName")?.value||null;
  if(!artigo||!fornecedor){alert("Artigo e fornecedor são obrigatórios.");return;}
- const data=new Date().toLocaleDateString("pt-PT");
- embalagemOrcamentos.unshift({artigo,fornecedor,qtd,valor,estado,nota,data});
+ const btn=document.getElementById("orcSubmitBtn");
+ if(btn){btn.disabled=true;btn.textContent="A guardar...";}
+ try{
+  const{data:row,error}=await db.from("packaging_orders").insert([{artigo,fornecedor,qtd,valor,estado,nota:nota||null,pdf_url,pdf_name,created_by:"app"}]).select().single();
+  if(error)throw error;
+  const dataStr=new Date().toLocaleDateString("pt-PT");
+  embalagemOrcamentos.unshift({id:row.id,artigo,fornecedor,qtd,valor,estado,nota,data:dataStr,pdf_url,pdf_name});
+ }catch(err){
+  console.warn("Erro ao guardar orçamento:",err);
+  // fallback: guardar em memória mesmo assim
+  embalagemOrcamentos.unshift({artigo,fornecedor,qtd,valor,estado,nota,data:new Date().toLocaleDateString("pt-PT"),pdf_url,pdf_name});
+ }
+ if(btn){btn.disabled=false;btn.textContent="Registar Orçamento";}
  renderEmbalagemOrcamentos(document.getElementById("embalagensContent"));
 }
 
