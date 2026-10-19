@@ -3802,36 +3802,49 @@ let embalagemOrcamentos=[];
 let embalagemViewMode="dashboard"; // dashboard | artigos | orcamentos | fornecedores
 let embalagemLoading=false;
 let embalagemLastInventarioDate=null;
+let embalagemDebug=null;
 
 // ─── Supabase: carregar contagens e orçamentos ───────────────────────────────
 async function loadEmbalagemData(){
  embalagemLoading=true;
  embalagemLastInventarioDate=null;
+ let _dbg={inv:null,prods:0,counts:0,matched:0,invErr:null,prodErr:null,cntErr:null};
  try{
   // 1. Contagens automáticas do último inventário (tabela counts + products)
-  // Buscar o inventário mais recente
   const{data:invRows,error:eInv}=await db.from("inventories").select("id,created_at,name").order("created_at",{ascending:false}).limit(1);
+  _dbg.invErr=eInv?.message||null;
   if(!eInv&&invRows&&invRows.length>0){
    const latestInv=invRows[0];
+   _dbg.inv=latestInv.name||latestInv.id;
    embalagemLastInventarioDate=latestInv.created_at;
    // Buscar produtos da categoria Embalagem
    const{data:prods,error:eProd}=await db.from("products").select("code,category").eq("category","Embalagem");
+   _dbg.prodErr=eProd?.message||null;
+   _dbg.prods=prods?.length||0;
+   // Se não encontrou com "Embalagem", tentar perceber que categorias existem
+   if(!prods||prods.length===0){
+    const{data:allProds}=await db.from("products").select("code,category").limit(10);
+    _dbg.sampleCats=(allProds||[]).map(p=>p.category).filter((v,i,a)=>a.indexOf(v)===i);
+   }
    if(!eProd&&prods&&prods.length>0){
     const embCodes=new Set(prods.map(p=>String(p.code)));
-    // Buscar counts do último inventário, somar por produto (vários armazéns)
     const{data:cntRows,error:eCnt}=await db.from("counts").select("product_code,quantity").eq("inventory_id",latestInv.id);
+    _dbg.cntErr=eCnt?.message||null;
+    _dbg.counts=cntRows?.length||0;
     if(!eCnt&&cntRows){
      const totals={};
      cntRows.forEach(r=>{
       const code=String(r.product_code);
       if(embCodes.has(code)){
        totals[code]=(totals[code]||0)+Number(r.quantity||0);
+       _dbg.matched++;
       }
      });
      Object.entries(totals).forEach(([code,qty])=>{embalagemContagens[code]=qty;});
     }
    }
   }
+  embalagemDebug=_dbg;
   // 2. Overrides manuais da tabela packaging_stock (têm prioridade sobre inventário)
   const{data:stockRows,error:e1}=await db.from("packaging_stock").select("artigo,contagem,fonte,updated_at").order("updated_at",{ascending:false});
   if(!e1&&stockRows){
@@ -4026,7 +4039,8 @@ function renderEmbalagensDashboard(el){
   .slice(0,8);
 
  const invDateStr=embalagemLastInventarioDate?new Date(embalagemLastInventarioDate).toLocaleDateString("pt-PT",{day:"2-digit",month:"long",year:"numeric"}):"desconhecida";
- el.innerHTML=`
+ const dbgHtml=embalagemDebug?`<details style="margin-bottom:12px;font-size:11px;color:#888;background:#f9f6f1;padding:8px 12px;border-radius:6px"><summary style="cursor:pointer;color:#8C6F58">🔍 Debug (clicar para ver)</summary><pre style="margin:6px 0 0;font-size:11px;white-space:pre-wrap">${JSON.stringify(embalagemDebug,null,2)}</pre></details>`:"";
+ el.innerHTML=`${dbgHtml}
   <div style="font-size:12px;color:#8C6F58;margin-bottom:12px;display:flex;align-items:center;gap:6px">
    <span>📋</span>
    <span>Contagens retiradas do inventário de <b>${invDateStr}</b>${comContagem<total?` · ${total-comContagem} artigo(s) sem contagem registada`:""}</span>
