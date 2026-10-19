@@ -4039,11 +4039,10 @@ function renderEmbalagensDashboard(el){
   .slice(0,8);
 
  const invDateStr=embalagemLastInventarioDate?new Date(embalagemLastInventarioDate).toLocaleDateString("pt-PT",{day:"2-digit",month:"long",year:"numeric"}):"desconhecida";
- const dbgHtml=embalagemDebug?`<details style="margin-bottom:12px;font-size:11px;color:#888;background:#f9f6f1;padding:8px 12px;border-radius:6px"><summary style="cursor:pointer;color:#8C6F58">🔍 Debug (clicar para ver)</summary><pre style="margin:6px 0 0;font-size:11px;white-space:pre-wrap">${JSON.stringify(embalagemDebug,null,2)}</pre></details>`:"";
- el.innerHTML=`${dbgHtml}
+ el.innerHTML=`
   <div style="font-size:12px;color:#8C6F58;margin-bottom:12px;display:flex;align-items:center;gap:6px">
    <span>📋</span>
-   <span>Contagens retiradas do inventário de <b>${invDateStr}</b>${comContagem<total?` · ${total-comContagem} artigo(s) sem contagem registada`:""}</span>
+   <span>Contagens do inventário de <b>${invDateStr}</b>${comContagem<total?` · ${total-comContagem} sem contagem registada`:""}</span>
   </div>
   <div class="cards" style="grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:20px">
    <div class="panel" style="text-align:center;padding:16px">
@@ -4150,34 +4149,44 @@ function renderEmbalagemArtigos(el){
      <tr style="border-bottom:2px solid var(--tan);background:var(--cream)">
       <th style="text-align:left;padding:10px 8px;color:var(--brown)">Artigo</th>
       <th style="text-align:left;padding:10px 8px;color:var(--brown)">Categoria</th>
-      <th style="text-align:right;padding:10px 8px;color:var(--brown)">2024</th>
-      <th style="text-align:right;padding:10px 8px;color:var(--brown)">2025 YTD</th>
-      <th style="text-align:right;padding:10px 8px;color:var(--brown)">Proj. 2026</th>
-      <th style="text-align:right;padding:10px 8px;color:var(--brown)">Contagem atual</th>
+      <th style="text-align:right;padding:10px 8px;color:var(--brown)">Consumo/mês</th>
+      <th style="text-align:right;padding:10px 8px;color:var(--brown)">Previsão nov–dez</th>
+      <th style="text-align:right;padding:10px 8px;color:var(--brown)">Stock (set. 2026)</th>
+      <th style="text-align:right;padding:10px 8px;color:var(--brown)">Meses de stock</th>
       <th style="text-align:center;padding:10px 8px;color:var(--brown)">Estado</th>
       <th style="text-align:center;padding:10px 8px;color:var(--brown)">Ação</th>
      </tr>
     </thead>
     <tbody id="embArtigosBody">
      ${filtered.map(a=>{
-      const p=proj2026(a.q2025);
-      const r=stockRisco(embalagemContagens[a.artigo],p);
-      const dias=stockDias(embalagemContagens[a.artigo],p);
-      const variacao=a.q2025>0&&a.q2024>0?((a.q2025/(a.q2024/12*10)-1)*100):null;
-      return `<tr style="border-bottom:1px solid var(--tan)">
+      const mediasMes=Math.round(a.q2025/10); // consumo médio mensal (jan–out = 10 meses)
+      const prevNovDez=mediasMes*2; // previsão nov + dez
+      const stock=embalagemContagens[a.artigo]||0;
+      const temStock=a.artigo in embalagemContagens;
+      const meses=mediasMes>0&&temStock?+(stock/mediasMes).toFixed(1):null;
+      const dias=meses!==null?Math.round(meses*30):null;
+      const r=stockRisco(stock,proj2026(a.q2025));
+      // cor dos meses de stock
+      const mesesColor=meses===null?"#999":meses<1?"#A8493B":meses<2?"#C67C2A":meses<3?"#8C6F58":"#5E7A54";
+      const ruptura=meses!==null&&meses<(2/12*30/30); // rutura se <15 dias
+      return `<tr style="border-bottom:1px solid var(--tan)${ruptura?";background:#FDF0EF":""}">
        <td style="padding:10px 8px"><div style="font-weight:600">${esc(a.desc)}</div><div style="font-size:11px;color:#888">${esc(a.artigo)}</div></td>
        <td style="padding:10px 8px"><span style="background:var(--tan);padding:2px 8px;border-radius:10px;font-size:11px">${esc(a.cat)}</span></td>
-       <td style="padding:10px 8px;text-align:right">${a.q2024.toLocaleString("pt-PT")}</td>
-       <td style="padding:10px 8px;text-align:right">${a.q2025.toLocaleString("pt-PT")}${variacao!==null?`<div style="font-size:10px;color:${variacao>=0?"#5E7A54":"#A8493B"}">${variacao>=0?"+":""}${variacao.toFixed(0)}% vs ano ant.</div>`:""}</td>
-       <td style="padding:10px 8px;text-align:right;font-weight:600;color:var(--brown)">${p.toLocaleString("pt-PT")}</td>
+       <td style="padding:10px 8px;text-align:right">${mediasMes>0?mediasMes.toLocaleString("pt-PT"):'<span style="color:#aaa">—</span>'}</td>
+       <td style="padding:10px 8px;text-align:right;color:#8C6F58">${prevNovDez>0?prevNovDez.toLocaleString("pt-PT"):'<span style="color:#aaa">—</span>'}</td>
        <td style="padding:10px 8px;text-align:right">
-        <input type="number" min="0" style="width:90px;padding:6px;border:1px solid var(--tan);border-radius:6px;text-align:right;font-size:13px"
-         value="${embalagemContagens[a.artigo]||""}"
-         placeholder="0"
-         onchange="embalagemContagens['${esc(a.artigo)}']=parseInt(this.value)||0;saveEmbalagemContagem('${esc(a.artigo)}',parseInt(this.value)||0,currentUser?.nome||null);renderEmbalagemArtigos(document.getElementById('embalagensContent'))"
-         oninput="this.style.borderColor='var(--brown)'">
+        ${temStock
+         ?`<b style="font-size:14px">${stock.toLocaleString("pt-PT")}</b><div style="font-size:10px;color:#999">${invDateStr}</div>`
+         :`<input type="number" min="0" style="width:80px;padding:6px;border:1px solid var(--tan);border-radius:6px;text-align:right;font-size:13px"
+           value="" placeholder="inserir"
+           onchange="embalagemContagens['${esc(a.artigo)}']=parseInt(this.value)||0;saveEmbalagemContagem('${esc(a.artigo)}',parseInt(this.value)||0,currentUser?.nome||null);renderEmbalagemArtigos(document.getElementById('embalagensContent'))"
+           oninput="this.style.borderColor='var(--brown)'">`
+        }
        </td>
-       <td style="padding:10px 8px;text-align:center">${riscoBadge(r)}${dias?`<div style="font-size:10px;color:#666;margin-top:3px">${dias} dias</div>`:""}</td>
+       <td style="padding:10px 8px;text-align:right;font-weight:700;font-size:15px;color:${mesesColor}">
+        ${meses===null?'<span style="color:#aaa;font-size:13px;font-weight:400">—</span>':meses<1?`<span>${(meses*30).toFixed(0)} dias</span>`:`${meses} meses`}
+       </td>
+       <td style="padding:10px 8px;text-align:center">${riscoBadge(r)}</td>
        <td style="padding:10px 8px;text-align:center">
         <button class="secondary" style="font-size:11px;padding:4px 10px" onclick="embalagemViewMode='orcamentos';embalagemNovoOrcPre='${esc(a.artigo)}';renderEmbalagens()">+ Orç.</button>
        </td>
@@ -4187,9 +4196,9 @@ function renderEmbalagemArtigos(el){
    </table>
   </div>
   <div style="margin-top:12px;padding:12px;background:var(--cream);border-radius:8px;font-size:12px;color:#666">
-   <b>Projeção 2026:</b> calculada a partir dos consumos 2025 YTD (jan–out, 10 meses) × 12 / 10.
-   <b>Lead time assumido:</b> 30–45 dias. Alertas: &lt;30 dias = Crítico · 30–60 = Alerta · 60–90 = Atenção.
-   ${embalagemLastInventarioDate?`As contagens são retiradas automaticamente do inventário de <b>${new Date(embalagemLastInventarioDate).toLocaleDateString("pt-PT",{day:"2-digit",month:"long",year:"numeric"})}</b>. Podes ajustar manualmente se necessário.`:"Sem inventário registado — insere as contagens manualmente para ativar os alertas."}
+   <b>Consumo/mês:</b> média dos consumos jan–out 2025 (10 meses). <b>Previsão nov–dez:</b> consumo médio × 2 meses restantes.
+   <b>Meses de stock:</b> stock ÷ consumo médio mensal — verde ≥3 meses · laranja 1–3 · vermelho &lt;1 mês.
+   ${embalagemLastInventarioDate?`Stock do inventário de <b>${new Date(embalagemLastInventarioDate).toLocaleDateString("pt-PT",{day:"2-digit",month:"long",year:"numeric"})}</b>. Artigos sem contagem: insere manualmente.`:"Sem inventário registado."}
   </div>
  `;
 }
