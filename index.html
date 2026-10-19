@@ -4003,8 +4003,7 @@ function renderEmbalagens(){
   {id:"dashboard",label:"📊 Resumo"},
   {id:"artigos",label:"📦 Artigos"},
   {id:"orcamentos",label:"💬 Orçamentos"},
-  {id:"fornecedores",label:"🤝 Fornecedores"},
-  {id:"assistente",label:"🤖 Apoio IA"}
+  {id:"fornecedores",label:"🤝 Fornecedores"}
  ];
 
  root.innerHTML=`
@@ -4029,7 +4028,6 @@ function renderEmbalagens(){
  else if(embalagemViewMode==="artigos") renderEmbalagemArtigos(content);
  else if(embalagemViewMode==="orcamentos") renderEmbalagemOrcamentos(content);
  else if(embalagemViewMode==="fornecedores") renderEmbalagemFornecedores(content);
- else if(embalagemViewMode==="assistente") renderEmbalagemAssistente(content);
 }
 
 function renderEmbalagensDashboard(el){
@@ -4153,11 +4151,15 @@ function renderEmbalagemArtigos(el){
  const cats=[...new Set(EMBALAGENS_DATA.map(a=>a.cat))].sort();
  const filterCat=window._embCatFilter||"";
  const filterSearch=window._embSearch||"";
+ const showAll=window._embShowAll||false;
+ // Por defeito mostra só artigos com dados de consumo ou stock registado; "ver todos" mostra os 51
  const filtered=EMBALAGENS_DATA.filter(a=>{
+  if(!showAll&&!filterSearch&&!filterCat&&a.q2024===0&&a.q2025===0&&!(a.artigo in embalagemContagens))return false;
   if(filterCat&&a.cat!==filterCat)return false;
   if(filterSearch&&!a.desc.toLowerCase().includes(filterSearch.toLowerCase())&&!a.artigo.toLowerCase().includes(filterSearch.toLowerCase()))return false;
   return true;
  });
+ const totalComDados=EMBALAGENS_DATA.filter(a=>a.q2024>0||a.q2025>0||(a.artigo in embalagemContagens)).length;
 
  el.innerHTML=`
   <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;align-items:center">
@@ -4167,6 +4169,7 @@ function renderEmbalagemArtigos(el){
     ${cats.map(c=>`<option ${filterCat===c?"selected":""}>${esc(c)}</option>`).join("")}
    </select>
    <span class="muted" style="font-size:13px">${filtered.length} artigos</span>
+   ${!showAll&&!filterSearch&&!filterCat?`<button class="secondary" style="font-size:12px;white-space:nowrap" onclick="window._embShowAll=true;renderEmbalagemArtigos(document.getElementById('embalagensContent'))">Ver todos (${EMBALAGENS_DATA.length})</button>`:`<button class="secondary" style="font-size:12px" onclick="window._embShowAll=false;renderEmbalagemArtigos(document.getElementById('embalagensContent'))">Só com dados</button>`}
   </div>
   <div style="overflow-x:auto">
    <table style="width:100%;border-collapse:collapse;font-size:13px">
@@ -4359,7 +4362,7 @@ function renderEmbalagemFornecedores(el){
  el.innerHTML=`
   <div class="panel" style="margin-bottom:20px">
    <h3 style="margin-bottom:6px">Fornecedores Conhecidos</h3>
-   <p style="font-size:13px;color:#666;margin-bottom:16px">Fornecedores com quem a Ti'Piedade já trabalhou ou pediu cotação. Para sugestões com análise de mercado, usa o separador <b>Apoio IA</b>.</p>
+   <p style="font-size:13px;color:#666;margin-bottom:16px">Fornecedores com quem a Ti'Piedade já trabalhou ou pediu cotação.</p>
    <div class="cards" style="grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px">
     ${EMBALAGENS_FORNECEDORES.map(f=>`
     <div class="panel" style="border:1px solid var(--tan)">
@@ -4367,9 +4370,8 @@ function renderEmbalagemFornecedores(el){
      <div style="font-size:12px;color:#888;margin-bottom:8px">${esc(f.especialidade)}</div>
      <div style="font-size:13px;margin-bottom:6px">${esc(f.nota)}</div>
      ${f.website&&f.website!=="—"?`<div style="font-size:12px"><a href="https://${esc(f.website)}" target="_blank" style="color:var(--brown)">${esc(f.website)}</a></div>`:""}
-     <div style="margin-top:10px;display:flex;gap:6px">
+     <div style="margin-top:10px">
       <button class="primary" style="font-size:12px" onclick="embalagemViewMode='orcamentos';renderEmbalagens()">Pedir orçamento</button>
-      <button class="secondary" style="font-size:12px" onclick="document.getElementById('embAIInput').value='Pesquisa o fornecedor ${esc(f.nome)} — qualidade, preços, avaliações de clientes, posição no mercado de embalagens alimentares em Portugal. Resume numa análise de qualidade vs preço.';embalagemViewMode='assistente';renderEmbalagens()">Ver análise IA →</button>
      </div>
     </div>
     `).join("")}
@@ -4392,7 +4394,6 @@ function renderEmbalagemFornecedores(el){
      <div style="font-size:11px;color:#888;margin-bottom:6px">${esc(f.area)}</div>
      <div style="font-size:12px;color:#555;margin-bottom:6px">${esc(f.esp)}</div>
      <div style="font-size:13px">${esc(f.nota)}</div>
-     <button class="secondary" style="margin-top:10px;font-size:12px" onclick="document.getElementById('embAIInput').value='Pesquisa o fornecedor ${esc(f.nome)} — qualidade do produto, preços típicos para pastelaria artesanal, fiabilidade de entrega, alternativas e avaliações do setor alimentar. Resume focando em qualidade e preço para uma marca premium como a Ti\\'Piedade.';embalagemViewMode='assistente';renderEmbalagens()">Analisar com IA →</button>
     </div>
     `).join("")}
    </div>
