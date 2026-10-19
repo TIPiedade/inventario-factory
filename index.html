@@ -3810,16 +3810,9 @@ async function loadEmbalagemData(){
  embalagemLastInventarioDate=null;
  let _dbg={inv:null,prods:0,counts:0,matched:0,invErr:null,prodErr:null,cntErr:null};
  try{
-  // DIAGNÓSTICO: mostrar todos os campos de 3 produtos de embalagem
-  const{data:sampleProds}=await db.from("products").select("*").eq("category","Embalagem").limit(3);
-  _dbg.sampleProd=sampleProds&&sampleProds.length>0?JSON.stringify(sampleProds[0]).slice(0,300):null;
-  _dbg.sampleProdFields=sampleProds&&sampleProds.length>0?Object.keys(sampleProds[0]).join(", "):null;
-  // DIAGNÓSTICO: mostrar 3 counts reais (sem filtro) para ver que valores tem product_code
-  const{data:allInvs2}=await db.from("inventories").select("id").order("created_at",{ascending:false}).limit(1);
-  if(allInvs2&&allInvs2.length>0){
-   const{data:sampleCnts}=await db.from("counts").select("product_code,quantity").eq("inventory_id",allInvs2[0].id).gt("quantity",0).limit(5);
-   _dbg.sampleCounts=(sampleCnts||[]).map(r=>`${r.product_code}:${r.quantity}`).join(", ");
-  }
+  // DIAGNÓSTICO: listar TODOS os produtos de embalagem (code + description) para mapeamento
+  const{data:allEmbProds}=await db.from("products").select("code,description").eq("category","Embalagem").order("code");
+  _dbg.allProds=(allEmbProds||[]).map(p=>`${p.code}|${p.description}`).join(" ;; ");
   embalagemDebug=_dbg;
   // 2. Overrides manuais da tabela packaging_stock (têm prioridade sobre inventário)
   const{data:stockRows,error:e1}=await db.from("packaging_stock").select("artigo,contagem,fonte,updated_at").order("updated_at",{ascending:false});
@@ -4019,11 +4012,8 @@ function renderEmbalagensDashboard(el){
  const dbgKeys=Object.keys(embalagemContagens).slice(0,5);
  const dbgArts=EMBALAGENS_DATA.slice(0,5).map(a=>a.artigo);
  const dbgMatch=dbgArts.filter(a=>a in embalagemContagens).length;
- const dbgBlock=embalagemDebug?`<div style="background:#fff3cd;border:1px solid #ffc107;padding:8px 12px;border-radius:6px;font-size:11px;font-family:monospace;margin-bottom:12px">
-  <b>DEBUG — campos da tabela products:</b> ${embalagemDebug.sampleProdFields||"(erro)"}<br>
-  <b>1 produto completo:</b> ${embalagemDebug.sampleProd||"(nenhum)"}<br>
-  <b>5 counts reais (product_code:qty):</b> ${embalagemDebug.sampleCounts||"(nenhum)"}<br>
-  <b>EMBALAGENS_DATA.artigo (5):</b> ${dbgArts.join(", ")}
+ const dbgBlock=embalagemDebug?`<div style="background:#fff3cd;border:1px solid #ffc107;padding:8px 12px;border-radius:6px;font-size:11px;font-family:monospace;margin-bottom:12px;word-break:break-all">
+  <b>Todos os produtos Embalagem (code|description):</b><br>${(embalagemDebug.allProds||"(nenhum)").split(" ;; ").join("<br>")}
  </div>`:"";
  el.innerHTML=`
   ${dbgBlock}
