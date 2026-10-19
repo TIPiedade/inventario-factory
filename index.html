@@ -3736,59 +3736,59 @@ async function addProduct(){
 // ===== EMBALAGENS TAB =====
 
 // artigo = products.code (numérico, chave real da DB usada em counts.product_code)
-// q2025 = consumo estimado Jan-Out 2025 (a preencher quando tivermos dados de compras)
+// q2024 = consumo total 2024 | q2025 = consumo total 2025 (fonte: consumos.xlsx)
 const EMBALAGENS_DATA = [
- {artigo:"2017",desc:"Papel Bancadas",cat:"Papéis",q2025:0},
- {artigo:"2070",desc:"Caixa Branca 900gr",cat:"Caixas Brancas",q2025:0},
- {artigo:"3010",desc:"Fita Auto Adesiva 50x66",cat:"Outros",q2025:0},
- {artigo:"3012",desc:"Filme Extensível Manual",cat:"Filmes",q2025:0},
- {artigo:"3014",desc:"Etiqueta Caixa",cat:"Etiquetas",q2025:0},
- {artigo:"3015",desc:"Agrafos 2ª Embalagem",cat:"Outros",q2025:0},
- {artigo:"3018",desc:"Filme Estirável Auto 17MW",cat:"Filmes",q2025:0},
- {artigo:"3024",desc:"Caixa Original 4×85 Fresco e Seco",cat:"Caixas Original",q2025:0},
- {artigo:"3026",desc:"Etiquetas Douradas (Selo Fecho)",cat:"Etiquetas",q2025:0},
- {artigo:"3028",desc:"Etiqueta Palete",cat:"Etiquetas",q2025:0},
- {artigo:"3033",desc:"Bases Papel Vegetal 900gr 33×33",cat:"Bases",q2025:0},
- {artigo:"3035",desc:"Filme PP Retráctil Dobrado",cat:"Filmes",q2025:0},
- {artigo:"3044",desc:"Bases Papel Vegetal 500gr 27×27",cat:"Bases",q2025:0},
- {artigo:"3045",desc:"Caixa Original 2×85 Fresco e Seco",cat:"Caixas Original",q2025:0},
- {artigo:"3046",desc:"Caixa Original 8×85 Fresco e Seco",cat:"Caixas Original",q2025:0},
- {artigo:"3047",desc:"Caixa Original 500gr Fresco e Seco",cat:"Caixas Original",q2025:0},
- {artigo:"3048",desc:"Caixa Original 900gr Fresco e Seco",cat:"Caixas Original",q2025:0},
- {artigo:"3049",desc:"Caixa Chocolate 2×85 Fresco e Seco",cat:"Caixas Chocolate",q2025:0},
- {artigo:"3050",desc:"Caixa Chocolate 8×85 Fresco e Seco",cat:"Caixas Chocolate",q2025:0},
- {artigo:"3051",desc:"Caixa Chocolate 400gr Fresco e Seco",cat:"Caixas Chocolate",q2025:0},
- {artigo:"3052",desc:"Caixa Canela 2×85 Fresco e Seco",cat:"Caixas Canela",q2025:0},
- {artigo:"3053",desc:"Caixa Canela 8×85 Fresco e Seco",cat:"Caixas Canela",q2025:0},
- {artigo:"3054",desc:"Caixa Canela 500gr Fresco e Seco",cat:"Caixas Canela",q2025:0},
- {artigo:"3056",desc:"Caixa Original 2×85 Congelado",cat:"Caixas Original",q2025:0},
- {artigo:"3057",desc:"Caixa Original 8×85 Congelado",cat:"Caixas Original",q2025:0},
- {artigo:"3058",desc:"Caixa Original 500gr Congelado",cat:"Caixas Original",q2025:0},
- {artigo:"3059",desc:"Caixa Original 900gr Congelado",cat:"Caixas Original",q2025:0},
- {artigo:"3060",desc:"Caixa Chocolate 2×85 Congelado",cat:"Caixas Chocolate",q2025:0},
- {artigo:"3061",desc:"Caixa Chocolate 8×85 Congelado",cat:"Caixas Chocolate",q2025:0},
- {artigo:"3062",desc:"Caixa Chocolate 400gr Congelado",cat:"Caixas Chocolate",q2025:0},
- {artigo:"3063",desc:"Caixa Canela 2×85 Congelado",cat:"Caixas Canela",q2025:0},
- {artigo:"3064",desc:"Caixa Canela 8×85 Congelado",cat:"Caixas Canela",q2025:0},
- {artigo:"3065",desc:"Caixa Canela 500gr Congelado",cat:"Caixas Canela",q2025:0},
- {artigo:"3067",desc:"Caixa Original 1400gr",cat:"Caixas Original",q2025:0},
- {artigo:"3068",desc:"Caixa Branca Uni",cat:"Caixas Brancas",q2025:0},
- {artigo:"3069",desc:"Caixa Branca 500gr",cat:"Caixas Brancas",q2025:0},
- {artigo:"3070",desc:"Caixa Contentora 900gr",cat:"Caixas Contentoras",q2025:0},
- {artigo:"3071",desc:"Caixa Contentora 500gr",cat:"Caixas Contentoras",q2025:0},
- {artigo:"3072",desc:"Caixa Contentora 85gr",cat:"Caixas Contentoras",q2025:0},
- {artigo:"3073",desc:"Bases Papel Vegetal Unidose 14×14",cat:"Bases",q2025:0},
- {artigo:"3074",desc:"Bases Papel Vegetal Mini 13×13",cat:"Bases",q2025:0},
- {artigo:"3080",desc:"Caixa Original 500gr Natal",cat:"Edições Limitadas",q2025:0},
- {artigo:"3083",desc:"Etiqueta Validade",cat:"Etiquetas",q2025:0},
- {artigo:"3092",desc:"Caixa Café 2×85 Fresco e Seco",cat:"Caixas Café",q2025:0},
- {artigo:"3093",desc:"Caixa Café 8×85 Fresco e Seco",cat:"Caixas Café",q2025:0},
- {artigo:"3094",desc:"Caixa Café 500gr Fresco e Seco",cat:"Caixas Café",q2025:0},
- {artigo:"3095",desc:"Caixa Café 2×85 Congelado",cat:"Caixas Café",q2025:0},
- {artigo:"3096",desc:"Caixa Café 8×85 Congelado",cat:"Caixas Café",q2025:0},
- {artigo:"3098",desc:"Palete Euro",cat:"Paletes",q2025:0},
- {artigo:"3099",desc:"Palete Tara Perdida",cat:"Paletes",q2025:0},
- {artigo:"3100",desc:"Caixa Ed. Limitada 500gr Limão",cat:"Edições Limitadas",q2025:0},
+ {artigo:"2017",desc:"Papel Bancadas",cat:"Papéis",q2024:0,q2025:0},
+ {artigo:"2070",desc:"Caixa Branca 900gr",cat:"Caixas Brancas",q2024:0,q2025:0},
+ {artigo:"3010",desc:"Fita Auto Adesiva 50x66",cat:"Outros",q2024:0,q2025:0},
+ {artigo:"3012",desc:"Filme Extensível Manual",cat:"Filmes",q2024:0,q2025:0},
+ {artigo:"3014",desc:"Etiqueta Caixa",cat:"Etiquetas",q2024:0,q2025:0},
+ {artigo:"3015",desc:"Agrafos 2ª Embalagem",cat:"Outros",q2024:0,q2025:0},
+ {artigo:"3018",desc:"Filme Estirável Auto 17MW",cat:"Filmes",q2024:0,q2025:0},
+ {artigo:"3024",desc:"Caixa Original 4×85 Fresco e Seco",cat:"Caixas Original",q2024:2122,q2025:1049},
+ {artigo:"3026",desc:"Etiquetas Douradas (Selo Fecho)",cat:"Etiquetas",q2024:0,q2025:0},
+ {artigo:"3028",desc:"Etiqueta Palete",cat:"Etiquetas",q2024:11000,q2025:0},
+ {artigo:"3033",desc:"Bases Papel Vegetal 900gr 33×33",cat:"Bases",q2024:5000,q2025:0},
+ {artigo:"3035",desc:"Filme PP Retráctil Dobrado",cat:"Filmes",q2024:1,q2025:0},
+ {artigo:"3044",desc:"Bases Papel Vegetal 500gr 27×27",cat:"Bases",q2024:193000,q2025:0},
+ {artigo:"3045",desc:"Caixa Original 2×85 Fresco e Seco",cat:"Caixas Original",q2024:12327,q2025:10245},
+ {artigo:"3046",desc:"Caixa Original 8×85 Fresco e Seco",cat:"Caixas Original",q2024:9002,q2025:5843},
+ {artigo:"3047",desc:"Caixa Original 500gr Fresco e Seco",cat:"Caixas Original",q2024:188312,q2025:196137},
+ {artigo:"3048",desc:"Caixa Original 900gr Fresco e Seco",cat:"Caixas Original",q2024:2013,q2025:2000},
+ {artigo:"3049",desc:"Caixa Chocolate 2×85 Fresco e Seco",cat:"Caixas Chocolate",q2024:3268,q2025:2743},
+ {artigo:"3050",desc:"Caixa Chocolate 8×85 Fresco e Seco",cat:"Caixas Chocolate",q2024:5733,q2025:3685},
+ {artigo:"3051",desc:"Caixa Chocolate 400gr Fresco e Seco",cat:"Caixas Chocolate",q2024:9118,q2025:10716},
+ {artigo:"3052",desc:"Caixa Canela 2×85 Fresco e Seco",cat:"Caixas Canela",q2024:676,q2025:660},
+ {artigo:"3053",desc:"Caixa Canela 8×85 Fresco e Seco",cat:"Caixas Canela",q2024:596,q2025:358},
+ {artigo:"3054",desc:"Caixa Canela 500gr Fresco e Seco",cat:"Caixas Canela",q2024:2775,q2025:2233},
+ {artigo:"3056",desc:"Caixa Original 2×85 Congelado",cat:"Caixas Original",q2024:1190,q2025:568},
+ {artigo:"3057",desc:"Caixa Original 8×85 Congelado",cat:"Caixas Original",q2024:12306,q2025:11974},
+ {artigo:"3058",desc:"Caixa Original 500gr Congelado",cat:"Caixas Original",q2024:3717,q2025:3645},
+ {artigo:"3059",desc:"Caixa Original 900gr Congelado",cat:"Caixas Original",q2024:318,q2025:211},
+ {artigo:"3060",desc:"Caixa Chocolate 2×85 Congelado",cat:"Caixas Chocolate",q2024:202,q2025:502},
+ {artigo:"3061",desc:"Caixa Chocolate 8×85 Congelado",cat:"Caixas Chocolate",q2024:6398,q2025:5102},
+ {artigo:"3062",desc:"Caixa Chocolate 400gr Congelado",cat:"Caixas Chocolate",q2024:382,q2025:207},
+ {artigo:"3063",desc:"Caixa Canela 2×85 Congelado",cat:"Caixas Canela",q2024:6,q2025:0},
+ {artigo:"3064",desc:"Caixa Canela 8×85 Congelado",cat:"Caixas Canela",q2024:1560,q2025:814},
+ {artigo:"3065",desc:"Caixa Canela 500gr Congelado",cat:"Caixas Canela",q2024:61,q2025:54},
+ {artigo:"3067",desc:"Caixa Original 1400gr",cat:"Caixas Original",q2024:9,q2025:4},
+ {artigo:"3068",desc:"Caixa Branca Uni",cat:"Caixas Brancas",q2024:2298,q2025:1804},
+ {artigo:"3069",desc:"Caixa Branca 500gr",cat:"Caixas Brancas",q2024:0,q2025:0},
+ {artigo:"3070",desc:"Caixa Contentora 900gr",cat:"Caixas Contentoras",q2024:0,q2025:0},
+ {artigo:"3071",desc:"Caixa Contentora 500gr",cat:"Caixas Contentoras",q2024:0,q2025:0},
+ {artigo:"3072",desc:"Caixa Contentora 85gr",cat:"Caixas Contentoras",q2024:0,q2025:0},
+ {artigo:"3073",desc:"Bases Papel Vegetal Unidose 14×14",cat:"Bases",q2024:1816000,q2025:0},
+ {artigo:"3074",desc:"Bases Papel Vegetal Mini 13×13",cat:"Bases",q2024:12500,q2025:0},
+ {artigo:"3080",desc:"Caixa Original 500gr Natal",cat:"Edições Limitadas",q2024:0,q2025:0},
+ {artigo:"3083",desc:"Etiqueta Validade",cat:"Etiquetas",q2024:0,q2025:0},
+ {artigo:"3092",desc:"Caixa Café 2×85 Fresco e Seco",cat:"Caixas Café",q2024:254,q2025:358},
+ {artigo:"3093",desc:"Caixa Café 8×85 Fresco e Seco",cat:"Caixas Café",q2024:486,q2025:277},
+ {artigo:"3094",desc:"Caixa Café 500gr Fresco e Seco",cat:"Caixas Café",q2024:364,q2025:535},
+ {artigo:"3095",desc:"Caixa Café 2×85 Congelado",cat:"Caixas Café",q2024:6,q2025:0},
+ {artigo:"3096",desc:"Caixa Café 8×85 Congelado",cat:"Caixas Café",q2024:1076,q2025:869},
+ {artigo:"3098",desc:"Palete Euro",cat:"Paletes",q2024:0,q2025:0},
+ {artigo:"3099",desc:"Palete Tara Perdida",cat:"Paletes",q2024:0,q2025:0},
+ {artigo:"3100",desc:"Caixa Ed. Limitada 500gr Limão",cat:"Edições Limitadas",q2024:3235,q2025:0},
 ];
 
 const EMBALAGENS_FORNECEDORES = [
@@ -3938,10 +3938,18 @@ async function analisarPdfOrcamento(file,artigo){
  }
 }
 
-function proj2026(q2025){
- // Project 2026 based on 2025 YTD (Jan–Oct = 10 months) → annualized
- const mesesDecorridos=10;
- return Math.round((q2025/mesesDecorridos)*12);
+function proj2026(q2025,q2024){
+ // Projeção 2026: anualiza 2025 (Jan–Out = 10 meses) + crescimento de 7,5%
+ // Fallback: se não há dados 2025, usa 2024 como base (mais conservador, sem crescimento)
+ const crescimento=1.075;
+ if(q2025&&q2025>0){
+  const mesesDecorridos=10;
+  return Math.round((q2025/mesesDecorridos)*12*crescimento);
+ }
+ if(q2024&&q2024>0){
+  return Math.round(q2024*crescimento);
+ }
+ return 0;
 }
 
 function stockRisco(atual,proj2026){
@@ -3988,8 +3996,8 @@ function renderEmbalagens(){
  if(!root)return;
 
  // Count alerts
- const criticos=EMBALAGENS_DATA.filter(a=>{const r=stockRisco(embalagemContagens[a.artigo],proj2026(a.q2025));return r==="critico";}).length;
- const alertas=EMBALAGENS_DATA.filter(a=>{const r=stockRisco(embalagemContagens[a.artigo],proj2026(a.q2025));return r==="alerta";}).length;
+ const criticos=EMBALAGENS_DATA.filter(a=>{const r=stockRisco(embalagemContagens[a.artigo],proj2026(a.q2025,a.q2024));return r==="critico";}).length;
+ const alertas=EMBALAGENS_DATA.filter(a=>{const r=stockRisco(embalagemContagens[a.artigo],proj2026(a.q2025,a.q2024));return r==="alerta";}).length;
 
  const tabs=[
   {id:"dashboard",label:"📊 Resumo"},
@@ -4027,16 +4035,16 @@ function renderEmbalagens(){
 function renderEmbalagensDashboard(el){
  const total=EMBALAGENS_DATA.length;
  const comContagem=EMBALAGENS_DATA.filter(a=>embalagemContagens[a.artigo]>0).length;
- const criticos=EMBALAGENS_DATA.filter(a=>stockRisco(embalagemContagens[a.artigo],proj2026(a.q2025))==="critico");
- const alertas=EMBALAGENS_DATA.filter(a=>stockRisco(embalagemContagens[a.artigo],proj2026(a.q2025))==="alerta");
- const atencao=EMBALAGENS_DATA.filter(a=>stockRisco(embalagemContagens[a.artigo],proj2026(a.q2025))==="atencao");
+ const criticos=EMBALAGENS_DATA.filter(a=>stockRisco(embalagemContagens[a.artigo],proj2026(a.q2025,a.q2024))==="critico");
+ const alertas=EMBALAGENS_DATA.filter(a=>stockRisco(embalagemContagens[a.artigo],proj2026(a.q2025,a.q2024))==="alerta");
+ const atencao=EMBALAGENS_DATA.filter(a=>stockRisco(embalagemContagens[a.artigo],proj2026(a.q2025,a.q2024))==="atencao");
  const orcPendentes=embalagemOrcamentos.filter(o=>o.estado==="pedido"||o.estado==="em-negociacao").length;
 
- // Mostrar artigos com contagem registada, ordenados por stock (maior primeiro)
- // Se não houver dados de consumo (q2025=0), mostrar todos com contagem
+ // Top artigos por volume estimado 2026 (com dados de consumo)
+ // Prioridade: artigos com q2025>0, fallback q2024>0; ordenados por proj2026 desc
  const topArticles=EMBALAGENS_DATA
-  .filter(a=>a.artigo in embalagemContagens)
-  .sort((a,b)=>(embalagemContagens[b.artigo]||0)-(embalagemContagens[a.artigo]||0))
+  .filter(a=>a.q2025>0||a.q2024>0)
+  .sort((a,b)=>proj2026(b.q2025,b.q2024)-proj2026(a.q2025,a.q2024))
   .slice(0,10);
 
  const invDateStr=embalagemLastInventarioDate?new Date(embalagemLastInventarioDate).toLocaleDateString("pt-PT",{day:"2-digit",month:"long",year:"numeric"}):"desconhecida";
@@ -4078,13 +4086,13 @@ function renderEmbalagensDashboard(el){
   <div class="panel" style="border-left:4px solid #A8493B;margin-bottom:20px">
    <h3 style="color:#A8493B;margin-bottom:12px">⚠ Ação Imediata Necessária</h3>
    ${[...criticos,...alertas].map(a=>{
-    const dias=stockDias(embalagemContagens[a.artigo],proj2026(a.q2025));
-    const r=stockRisco(embalagemContagens[a.artigo],proj2026(a.q2025));
+    const dias=stockDias(embalagemContagens[a.artigo],proj2026(a.q2025,a.q2024));
+    const r=stockRisco(embalagemContagens[a.artigo],proj2026(a.q2025,a.q2024));
     return `<div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--tan)">
      ${riscoBadge(r)}
      <div style="flex:1">
       <div style="font-weight:600;font-size:14px">${esc(a.desc)}</div>
-      <div style="font-size:12px;color:#666">${dias?`Stock para <b>${dias} dias</b> — prazo de entrega típico: 30–45 dias`:""} · Projeção 2026: <b>${proj2026(a.q2025).toLocaleString("pt-PT")}</b> un</div>
+      <div style="font-size:12px;color:#666">${dias?`Stock para <b>${dias} dias</b> — prazo de entrega típico: 30–45 dias`:""} · Projeção 2026: <b>${proj2026(a.q2025,a.q2024).toLocaleString("pt-PT")}</b> un</div>
      </div>
      <button class="primary" style="font-size:12px;white-space:nowrap" onclick="embalagemViewMode='orcamentos';embalagemNovoOrcPre='${esc(a.artigo)}';renderEmbalagens()">Pedir orçamento</button>
     </div>`;
@@ -4093,33 +4101,48 @@ function renderEmbalagensDashboard(el){
   `:""}
 
   <div class="panel">
-   <h3 style="margin-bottom:6px">Artigos com Contagem Registada</h3>
-   <p style="font-size:12px;color:#888;margin-bottom:14px">Inventário de <b>${invDateStr}</b> · ordenado por stock (maior primeiro) · clica para ver todos os artigos</p>
-   ${topArticles.length===0?`<div style="text-align:center;padding:32px;color:#aaa;font-size:14px">Nenhum artigo com contagem registada ainda.<br><span style="font-size:12px">Os dados carregam automaticamente do inventário mais recente.</span></div>`:`
+   <h3 style="margin-bottom:6px">Top Artigos por Volume Estimado 2026</h3>
+   <p style="font-size:12px;color:#888;margin-bottom:14px">Projeção baseada no consumo 2025 anualizado +7,5% · stock do inventário de <b>${invDateStr}</b> · <a href="#" onclick="event.preventDefault();embalagemViewMode='artigos';renderEmbalagens()" style="color:var(--brown)">ver todos os artigos →</a></p>
+   ${topArticles.length===0?`<div style="text-align:center;padding:32px;color:#aaa;font-size:14px">Sem dados de consumo registados ainda.</div>`:`
    <div style="overflow-x:auto">
     <table style="width:100%;border-collapse:collapse;font-size:13px">
      <thead>
-      <tr style="border-bottom:2px solid var(--tan)">
+      <tr style="border-bottom:2px solid var(--tan);background:var(--cream)">
        <th style="text-align:left;padding:8px 6px;color:var(--brown)">Artigo</th>
-       <th style="text-align:left;padding:8px 6px;color:var(--brown)">Categoria</th>
-       <th style="text-align:right;padding:8px 6px;color:var(--brown)">Stock atual</th>
+       <th style="text-align:right;padding:8px 6px;color:var(--brown)">2024</th>
+       <th style="text-align:right;padding:8px 6px;color:var(--brown)">2025</th>
+       <th style="text-align:right;padding:8px 6px;color:var(--brown)">Proj. 2026</th>
+       <th style="text-align:right;padding:8px 6px;color:var(--brown)">Stock</th>
+       <th style="text-align:right;padding:8px 6px;color:var(--brown)">Dias</th>
        <th style="text-align:center;padding:8px 6px;color:var(--brown)">Estado</th>
       </tr>
      </thead>
      <tbody>
       ${topArticles.map(a=>{
+       const p=proj2026(a.q2025,a.q2024);
        const stock=embalagemContagens[a.artigo]||0;
-       const r=stockRisco(stock,proj2026(a.q2025));
-       return `<tr style="border-bottom:1px solid var(--tan);cursor:pointer" onclick="embalagemViewMode='artigos';renderEmbalagens()">
-        <td style="padding:10px 6px"><div style="font-weight:600">${esc(a.desc)}</div><div style="font-size:11px;color:#888">${esc(a.artigo)}</div></td>
-        <td style="padding:10px 6px"><span style="background:var(--tan);padding:2px 8px;border-radius:10px;font-size:11px">${esc(a.cat)}</span></td>
-        <td style="padding:10px 6px;text-align:right;font-weight:700;font-size:15px;color:var(--brown)">${stock.toLocaleString("pt-PT")}</td>
+       const temStock=a.artigo in embalagemContagens;
+       const dias=stockDias(stock,p);
+       const r=stockRisco(stock,p);
+       const diasColor=dias===null?"#ccc":dias<30?"#A8493B":dias<60?"#C67C2A":dias<90?"#8C6F58":"#5E7A54";
+       const basadoEm=a.q2025>0?"2025":"2024*";
+       return `<tr style="border-bottom:1px solid var(--tan);cursor:pointer${dias!==null&&dias<30?";background:#FDF0EF":""}" onclick="embalagemViewMode='artigos';renderEmbalagens()">
+        <td style="padding:10px 6px">
+         <div style="font-weight:600;font-size:13px">${esc(a.desc)}</div>
+         <div style="font-size:11px;color:#888">${esc(a.artigo)} · base: ${basadoEm}</div>
+        </td>
+        <td style="padding:10px 6px;text-align:right;color:#999;font-size:12px">${a.q2024>0?a.q2024.toLocaleString("pt-PT"):'<span style="color:#ddd">—</span>'}</td>
+        <td style="padding:10px 6px;text-align:right;color:#666;font-size:12px">${a.q2025>0?a.q2025.toLocaleString("pt-PT"):'<span style="color:#ddd">—</span>'}</td>
+        <td style="padding:10px 6px;text-align:right;font-weight:700;color:var(--brown)">${p.toLocaleString("pt-PT")}</td>
+        <td style="padding:10px 6px;text-align:right;font-weight:600;color:${temStock?"var(--brown)":"#aaa"}">${temStock?stock.toLocaleString("pt-PT"):'<span style="font-size:11px;color:#aaa">sem dados</span>'}</td>
+        <td style="padding:10px 6px;text-align:right;font-weight:700;color:${diasColor}">${dias===null?'<span style="color:#ddd;font-weight:400">—</span>':dias}</td>
         <td style="padding:10px 6px;text-align:center">${riscoBadge(r)}</td>
        </tr>`;
       }).join("")}
      </tbody>
     </table>
    </div>
+   <div style="margin-top:10px;font-size:11px;color:#aaa">* Artigos sem consumo 2025 usam 2024 como base estimada</div>
    `}
   </div>
  `;
@@ -4151,19 +4174,29 @@ function renderEmbalagemArtigos(el){
      <tr style="border-bottom:2px solid var(--tan);background:var(--cream)">
       <th style="text-align:left;padding:10px 8px;color:var(--brown)">Artigo</th>
       <th style="text-align:left;padding:10px 8px;color:var(--brown)">Categoria</th>
+      <th style="text-align:right;padding:10px 8px;color:var(--brown)">2024</th>
+      <th style="text-align:right;padding:10px 8px;color:var(--brown)">2025</th>
+      <th style="text-align:right;padding:10px 8px;color:var(--brown)">Proj. 2026</th>
       <th style="text-align:right;padding:10px 8px;color:var(--brown)">Stock atual</th>
+      <th style="text-align:right;padding:10px 8px;color:var(--brown)">Dias stock</th>
       <th style="text-align:center;padding:10px 8px;color:var(--brown)">Estado</th>
       <th style="text-align:center;padding:10px 8px;color:var(--brown)">Ação</th>
      </tr>
     </thead>
     <tbody id="embArtigosBody">
      ${filtered.map(a=>{
+      const p=proj2026(a.q2025,a.q2024);
       const stock=embalagemContagens[a.artigo]||0;
       const temStock=a.artigo in embalagemContagens;
-      const r=stockRisco(stock,proj2026(a.q2025));
-      return `<tr style="border-bottom:1px solid var(--tan)">
+      const dias=stockDias(stock,p);
+      const r=stockRisco(stock,p);
+      const diasColor=dias===null?"#999":dias<30?"#A8493B":dias<60?"#C67C2A":dias<90?"#8C6F58":"#5E7A54";
+      return `<tr style="border-bottom:1px solid var(--tan)${dias!==null&&dias<30?";background:#FDF0EF":""}>
        <td style="padding:10px 8px"><div style="font-weight:600">${esc(a.desc)}</div><div style="font-size:11px;color:#888">${esc(a.artigo)}</div></td>
        <td style="padding:10px 8px"><span style="background:var(--tan);padding:2px 8px;border-radius:10px;font-size:11px">${esc(a.cat)}</span></td>
+       <td style="padding:10px 8px;text-align:right;color:#888">${a.q2024>0?a.q2024.toLocaleString("pt-PT"):'<span style="color:#ccc">—</span>'}</td>
+       <td style="padding:10px 8px;text-align:right;color:#666">${a.q2025>0?a.q2025.toLocaleString("pt-PT"):'<span style="color:#ccc">—</span>'}</td>
+       <td style="padding:10px 8px;text-align:right;font-weight:600;color:var(--brown)">${p>0?p.toLocaleString("pt-PT"):'<span style="color:#ccc;font-weight:400">—</span>'}</td>
        <td style="padding:10px 8px;text-align:right">
         ${temStock
          ?`<b style="font-size:14px;color:var(--brown)">${stock.toLocaleString("pt-PT")}</b><div style="font-size:10px;color:#999">${invDateStr}</div>`
@@ -4172,6 +4205,9 @@ function renderEmbalagemArtigos(el){
            onchange="embalagemContagens['${esc(a.artigo)}']=parseInt(this.value)||0;saveEmbalagemContagem('${esc(a.artigo)}',parseInt(this.value)||0,currentUser?.nome||null);renderEmbalagemArtigos(document.getElementById('embalagensContent'))"
            oninput="this.style.borderColor='var(--brown)'">`
         }
+       </td>
+       <td style="padding:10px 8px;text-align:right;font-weight:700;color:${diasColor}">
+        ${dias===null?'<span style="color:#ccc;font-weight:400">—</span>':`${dias}`}
        </td>
        <td style="padding:10px 8px;text-align:center">${riscoBadge(r)}</td>
        <td style="padding:10px 8px;text-align:center">
@@ -4183,7 +4219,8 @@ function renderEmbalagemArtigos(el){
    </table>
   </div>
   <div style="margin-top:12px;padding:12px;background:var(--cream);border-radius:8px;font-size:12px;color:#666">
-   ${embalagemLastInventarioDate?`Stock carregado do inventário de <b>${new Date(embalagemLastInventarioDate).toLocaleDateString("pt-PT",{day:"2-digit",month:"long",year:"numeric"})}</b>. Artigos sem contagem podem ser inseridos manualmente.`:"Sem inventário registado — os stocks são carregados automaticamente do inventário mais recente."}
+   <b>2024/2025:</b> consumo anual. <b>Proj. 2026:</b> 2025 anualizado +7,5% (estimativa de crescimento); artigos sem dados 2025 usam 2024 como base. <b>Dias stock:</b> stock ÷ consumo diário estimado (verde ≥90 · laranja 60–90 · vermelho &lt;60 · crítico &lt;30).
+   ${embalagemLastInventarioDate?` · Stock do inventário de <b>${new Date(embalagemLastInventarioDate).toLocaleDateString("pt-PT",{day:"2-digit",month:"long",year:"numeric"})}</b>.`:""}
   </div>
  `;
 }
