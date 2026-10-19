@@ -4146,22 +4146,8 @@ function renderEmbalagensDashboard(el){
  `;
 }
 
-function renderEmbalagemArtigos(el){
- var invDateStr=embalagemLastInventarioDate?new Date(embalagemLastInventarioDate).toLocaleDateString("pt-PT",{day:"2-digit",month:"long",year:"numeric"}):"—";
- var cats=[...new Set(EMBALAGENS_DATA.map(function(a){return a.cat;}))].sort();
- var filterCat=window._embCatFilter||"";
- var filterSearch=window._embSearch||"";
- var showAll=window._embShowAll||false;
- // Por defeito mostra só artigos com dados de consumo (q2024>0 ou q2025>0) ou stock>0
- var filtered=EMBALAGENS_DATA.filter(function(a){
-  if(!showAll&&!filterSearch&&!filterCat&&a.q2024===0&&a.q2025===0&&!(embalagemContagens[a.artigo]>0))return false;
-  if(filterCat&&a.cat!==filterCat)return false;
-  if(filterSearch&&!a.desc.toLowerCase().includes(filterSearch.toLowerCase())&&!a.artigo.toLowerCase().includes(filterSearch.toLowerCase()))return false;
-  return true;
- });
-
- // Construir rows separadamente para evitar problemas de template literals aninhados
- var rows=filtered.map(function(a){
+function _embBuildRows(filtered,invDateStr){
+ return filtered.map(function(a){
   var p=proj2026(a.q2025,a.q2024);
   var stock=embalagemContagens[a.artigo]||0;
   var temStock=embalagemContagens[a.artigo]>0;
@@ -4182,7 +4168,7 @@ function renderEmbalagemArtigos(el){
     +' value="" placeholder="inserir"'
     +' onchange="embalagemContagens[\''+esc(a.artigo)+'\']=parseInt(this.value)||0;'
     +'saveEmbalagemContagem(\''+esc(a.artigo)+'\',parseInt(this.value)||0,currentUser&&currentUser.nome||null);'
-    +'renderEmbalagemArtigos(document.getElementById(\'embalagensContent\'))"'
+    +'_embUpdateTable(document.getElementById(\'embalagensContent\'))"'
     +' oninput="this.style.borderColor=\'var(--brown)\'">';
   }
   var diasCell=dias===null?'<span style="color:#ccc;font-weight:400">—</span>':String(dias);
@@ -4201,13 +4187,57 @@ function renderEmbalagemArtigos(el){
    +'</td>'
    +'</tr>';
  }).join("");
+}
 
- var toggleBtn=(!showAll&&!filterSearch&&!filterCat)
+// Atualiza só o tbody + contador + botão toggle — não toca nos controlos de pesquisa/filtro
+function _embUpdateTable(el){
+ var invDateStr=embalagemLastInventarioDate?new Date(embalagemLastInventarioDate).toLocaleDateString("pt-PT",{day:"2-digit",month:"long",year:"numeric"}):"—";
+ var filterCat=window._embCatFilter||"";
+ var filterSearch=window._embSearch||"";
+ var showAll=window._embShowAll||false;
+ var filtered=EMBALAGENS_DATA.filter(function(a){
+  if(!showAll&&!filterSearch&&!filterCat&&a.q2024===0&&a.q2025===0&&!(embalagemContagens[a.artigo]>0))return false;
+  if(filterCat&&a.cat!==filterCat)return false;
+  if(filterSearch&&!a.desc.toLowerCase().includes(filterSearch.toLowerCase())&&!a.artigo.toLowerCase().includes(filterSearch.toLowerCase()))return false;
+  return true;
+ });
+ var tbody=el.querySelector("tbody");
+ if(tbody)tbody.innerHTML=_embBuildRows(filtered,invDateStr);
+ var counter=el.querySelector("#embCounter");
+ if(counter)counter.textContent=filtered.length+" artigos";
+ var toggleArea=el.querySelector("#embToggle");
+ if(toggleArea){
+  if(!showAll&&!filterSearch&&!filterCat){
+   toggleArea.innerHTML='<button class="secondary" style="font-size:12px;white-space:nowrap"'
+    +' onclick="window._embShowAll=true;_embUpdateTable(document.getElementById(\'embalagensContent\'))">'
+    +'Ver todos ('+EMBALAGENS_DATA.length+')</button>';
+  } else {
+   toggleArea.innerHTML='<button class="secondary" style="font-size:12px"'
+    +' onclick="window._embShowAll=false;_embUpdateTable(document.getElementById(\'embalagensContent\'))">'
+    +'Só com dados</button>';
+  }
+ }
+}
+
+function renderEmbalagemArtigos(el){
+ var invDateStr=embalagemLastInventarioDate?new Date(embalagemLastInventarioDate).toLocaleDateString("pt-PT",{day:"2-digit",month:"long",year:"numeric"}):"—";
+ var cats=[...new Set(EMBALAGENS_DATA.map(function(a){return a.cat;}))].sort();
+ var filterCat=window._embCatFilter||"";
+ var filterSearch=window._embSearch||"";
+ var showAll=window._embShowAll||false;
+ var filtered=EMBALAGENS_DATA.filter(function(a){
+  if(!showAll&&!filterSearch&&!filterCat&&a.q2024===0&&a.q2025===0&&!(embalagemContagens[a.artigo]>0))return false;
+  if(filterCat&&a.cat!==filterCat)return false;
+  if(filterSearch&&!a.desc.toLowerCase().includes(filterSearch.toLowerCase())&&!a.artigo.toLowerCase().includes(filterSearch.toLowerCase()))return false;
+  return true;
+ });
+
+ var toggleHtml=(!showAll&&!filterSearch&&!filterCat)
   ?('<button class="secondary" style="font-size:12px;white-space:nowrap"'
-    +' onclick="window._embShowAll=true;renderEmbalagemArtigos(document.getElementById(\'embalagensContent\'))">'
+    +' onclick="window._embShowAll=true;_embUpdateTable(document.getElementById(\'embalagensContent\'))">'
     +'Ver todos ('+EMBALAGENS_DATA.length+')</button>')
   :('<button class="secondary" style="font-size:12px"'
-    +' onclick="window._embShowAll=false;renderEmbalagemArtigos(document.getElementById(\'embalagensContent\'))">'
+    +' onclick="window._embShowAll=false;_embUpdateTable(document.getElementById(\'embalagensContent\'))">'
     +'Só com dados</button>');
 
  var catOptions='<option value="">Todas as categorias</option>'
@@ -4217,16 +4247,17 @@ function renderEmbalagemArtigos(el){
   ?' · Stock do inventário de <b>'+new Date(embalagemLastInventarioDate).toLocaleDateString("pt-PT",{day:"2-digit",month:"long",year:"numeric"})+'</b>.'
   :'';
 
+ // Scaffold completo — só corre na primeira vez ou ao mudar de tab
  el.innerHTML=''
   +'<div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;align-items:center">'
   +'<input id="embSearch" class="search" style="margin:0;flex:1;min-width:180px" placeholder="Pesquisar artigo..."'
   +' value="'+esc(filterSearch)+'"'
-  +' oninput="window._embSearch=this.value;renderEmbalagemArtigos(document.getElementById(\'embalagensContent\'))">'
+  +' oninput="window._embSearch=this.value;_embUpdateTable(document.getElementById(\'embalagensContent\'))">'
   +'<select id="embCat" style="padding:11px;border:1px solid var(--tan);border-radius:8px"'
-  +' onchange="window._embCatFilter=this.value;renderEmbalagemArtigos(document.getElementById(\'embalagensContent\'))">'
+  +' onchange="window._embCatFilter=this.value;_embUpdateTable(document.getElementById(\'embalagensContent\'))">'
   +catOptions+'</select>'
-  +'<span class="muted" style="font-size:13px">'+filtered.length+' artigos</span>'
-  +toggleBtn
+  +'<span id="embCounter" class="muted" style="font-size:13px">'+filtered.length+' artigos</span>'
+  +'<span id="embToggle">'+toggleHtml+'</span>'
   +'</div>'
   +'<div style="overflow-x:auto">'
   +'<table style="width:100%;border-collapse:collapse;font-size:13px">'
@@ -4241,7 +4272,7 @@ function renderEmbalagemArtigos(el){
   +'<th style="text-align:center;padding:10px 8px;color:var(--brown)">Estado</th>'
   +'<th style="text-align:center;padding:10px 8px;color:var(--brown)">Ação</th>'
   +'</tr></thead>'
-  +'<tbody>'+rows+'</tbody>'
+  +'<tbody>'+_embBuildRows(filtered,invDateStr)+'</tbody>'
   +'</table></div>'
   +'<div style="margin-top:12px;padding:12px;background:var(--cream);border-radius:8px;font-size:12px;color:#666">'
   +'<b>2024/2025:</b> consumo anual. <b>Proj. 2026:</b> 2025 anualizado +7,5% (estimativa de crescimento); artigos sem dados 2025 usam 2024 como base. '
