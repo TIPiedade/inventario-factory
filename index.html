@@ -3810,41 +3810,15 @@ async function loadEmbalagemData(){
  embalagemLastInventarioDate=null;
  let _dbg={inv:null,prods:0,counts:0,matched:0,invErr:null,prodErr:null,cntErr:null};
  try{
-  // 1. Contagens automáticas — usar directamente os códigos de EMBALAGENS_DATA
-  // (products.code são numéricos e não batem com os artigo codes do EMBALAGENS_DATA)
-  const embArtigoCodes=EMBALAGENS_DATA.map(a=>a.artigo);
-  _dbg.prods=embArtigoCodes.length;
-  // Buscar todos os inventários do mais recente para o mais antigo
-  const{data:allInvs,error:eInv}=await db.from("inventories").select("id,created_at,name").order("created_at",{ascending:false});
-  _dbg.invErr=eInv?.message||null;
-  _dbg.allInvs=allInvs?.length||0;
-  if(!eInv&&allInvs&&allInvs.length>0){
-   // Buscar TODAS as counts destes artigos com qty>0
-   const{data:allCnts,error:eCnt}=await db.from("counts").select("product_code,quantity,inventory_id").in("product_code",embArtigoCodes).gt("quantity",0);
-   _dbg.cntErr=eCnt?.message||null;
-   _dbg.counts=allCnts?.length||0;
-   if(!eCnt&&allCnts&&allCnts.length>0){
-    // Ordenar inventários por data (mais recente = índice menor)
-    const invOrder=Object.fromEntries(allInvs.map((inv,i)=>[String(inv.id),i]));
-    // Para cada artigo, guardar a contagem do inventário mais recente com qty>0
-    const bestByCode={};
-    allCnts.forEach(r=>{
-     const code=String(r.product_code);
-     const order=invOrder[String(r.inventory_id)]??999;
-     if(!(code in bestByCode)||order<bestByCode[code].order){
-      bestByCode[code]={qty:Number(r.quantity),order,invId:r.inventory_id};
-     }
-    });
-    // Encontrar o inventário mais recente que tem contagens de embalagem
-    let bestInvId=null,bestInvOrder=999;
-    Object.values(bestByCode).forEach(v=>{if(v.order<bestInvOrder){bestInvOrder=v.order;bestInvId=v.invId;}});
-    if(bestInvId!==null){
-     const bestInv=allInvs.find(i=>String(i.id)===String(bestInvId));
-     if(bestInv)embalagemLastInventarioDate=bestInv.created_at;
-     _dbg.inv=bestInv?.name||bestInvId;
-    }
-    Object.entries(bestByCode).forEach(([code,v])=>{embalagemContagens[code]=v.qty;_dbg.matched++;});
-   }
+  // DIAGNÓSTICO: mostrar todos os campos de 3 produtos de embalagem
+  const{data:sampleProds}=await db.from("products").select("*").eq("category","Embalagem").limit(3);
+  _dbg.sampleProd=sampleProds&&sampleProds.length>0?JSON.stringify(sampleProds[0]).slice(0,300):null;
+  _dbg.sampleProdFields=sampleProds&&sampleProds.length>0?Object.keys(sampleProds[0]).join(", "):null;
+  // DIAGNÓSTICO: mostrar 3 counts reais (sem filtro) para ver que valores tem product_code
+  const{data:allInvs2}=await db.from("inventories").select("id").order("created_at",{ascending:false}).limit(1);
+  if(allInvs2&&allInvs2.length>0){
+   const{data:sampleCnts}=await db.from("counts").select("product_code,quantity").eq("inventory_id",allInvs2[0].id).gt("quantity",0).limit(5);
+   _dbg.sampleCounts=(sampleCnts||[]).map(r=>`${r.product_code}:${r.quantity}`).join(", ");
   }
   embalagemDebug=_dbg;
   // 2. Overrides manuais da tabela packaging_stock (têm prioridade sobre inventário)
@@ -4046,10 +4020,10 @@ function renderEmbalagensDashboard(el){
  const dbgArts=EMBALAGENS_DATA.slice(0,5).map(a=>a.artigo);
  const dbgMatch=dbgArts.filter(a=>a in embalagemContagens).length;
  const dbgBlock=embalagemDebug?`<div style="background:#fff3cd;border:1px solid #ffc107;padding:8px 12px;border-radius:6px;font-size:11px;font-family:monospace;margin-bottom:12px">
-  <b>DEBUG</b> prods=${embalagemDebug.prods} invs=${embalagemDebug.allInvs||0} counts=${embalagemDebug.counts} matched=${embalagemDebug.matched}<br>
-  <b>products.code (5):</b> ${dbgKeys.join(", ")||"(nenhum)"}<br>
-  <b>EMBALAGENS_DATA.artigo (5):</b> ${dbgArts.join(", ")}<br>
-  <b>Match direto:</b> ${dbgMatch}/5 | <b>Contagens obj keys:</b> ${Object.keys(embalagemContagens).length}
+  <b>DEBUG — campos da tabela products:</b> ${embalagemDebug.sampleProdFields||"(erro)"}<br>
+  <b>1 produto completo:</b> ${embalagemDebug.sampleProd||"(nenhum)"}<br>
+  <b>5 counts reais (product_code:qty):</b> ${embalagemDebug.sampleCounts||"(nenhum)"}<br>
+  <b>EMBALAGENS_DATA.artigo (5):</b> ${dbgArts.join(", ")}
  </div>`:"";
  el.innerHTML=`
   ${dbgBlock}
