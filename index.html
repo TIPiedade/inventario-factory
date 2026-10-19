@@ -3810,37 +3810,43 @@ async function loadEmbalagemData(){
  embalagemLastInventarioDate=null;
  let _dbg={inv:null,prods:0,counts:0,matched:0,invErr:null,prodErr:null,cntErr:null};
  try{
-  // 1. Contagens automáticas do último inventário (tabela counts + products)
-  const{data:invRows,error:eInv}=await db.from("inventories").select("id,created_at,name").order("created_at",{ascending:false}).limit(1);
-  _dbg.invErr=eInv?.message||null;
-  if(!eInv&&invRows&&invRows.length>0){
-   const latestInv=invRows[0];
-   _dbg.inv=latestInv.name||latestInv.id;
-   embalagemLastInventarioDate=latestInv.created_at;
-   // Buscar produtos da categoria Embalagem
-   const{data:prods,error:eProd}=await db.from("products").select("code,category").eq("category","Embalagem");
-   _dbg.prodErr=eProd?.message||null;
-   _dbg.prods=prods?.length||0;
-   // Se não encontrou com "Embalagem", tentar perceber que categorias existem
-   if(!prods||prods.length===0){
-    const{data:allProds}=await db.from("products").select("code,category").limit(10);
-    _dbg.sampleCats=(allProds||[]).map(p=>p.category).filter((v,i,a)=>a.indexOf(v)===i);
-   }
-   if(!eProd&&prods&&prods.length>0){
-    const embCodes=new Set(prods.map(p=>String(p.code)));
-    const{data:cntRows,error:eCnt}=await db.from("counts").select("product_code,quantity").eq("inventory_id",latestInv.id);
+  // 1. Contagens automáticas — buscar de todos os inventários, do mais recente para o mais antigo
+  // Para cada artigo de embalagem, usar a contagem mais recente com valor > 0
+  const{data:prods,error:eProd}=await db.from("products").select("code,category").eq("category","Embalagem");
+  _dbg.prodErr=eProd?.message||null;
+  _dbg.prods=prods?.length||0;
+  if(!eProd&&prods&&prods.length>0){
+   const embCodes=new Set(prods.map(p=>String(p.code)));
+   // Buscar todos os inventários do mais recente para o mais antigo
+   const{data:allInvs,error:eInv}=await db.from("inventories").select("id,created_at,name").order("created_at",{ascending:false});
+   _dbg.invErr=eInv?.message||null;
+   _dbg.allInvs=allInvs?.length||0;
+   if(!eInv&&allInvs&&allInvs.length>0){
+    // Buscar TODAS as counts de embalagem de uma vez (mais eficiente)
+    const{data:allCnts,error:eCnt}=await db.from("counts").select("product_code,quantity,inventory_id").in("product_code",[...embCodes]).gt("quantity",0).order("inventory_id",{ascending:false});
     _dbg.cntErr=eCnt?.message||null;
-    _dbg.counts=cntRows?.length||0;
-    if(!eCnt&&cntRows){
-     const totals={};
-     cntRows.forEach(r=>{
+    _dbg.counts=allCnts?.length||0;
+    if(!eCnt&&allCnts&&allCnts.length>0){
+     // Ordenar inventários por data (mais recente = índice menor)
+     const invOrder=Object.fromEntries(allInvs.map((inv,i)=>[String(inv.id),i]));
+     // Para cada artigo, guardar a contagem do inventário mais recente com qty>0
+     const bestByCode={};
+     allCnts.forEach(r=>{
       const code=String(r.product_code);
-      if(embCodes.has(code)){
-       totals[code]=(totals[code]||0)+Number(r.quantity||0);
-       _dbg.matched++;
+      const order=invOrder[String(r.inventory_id)]??999;
+      if(!(code in bestByCode)||order<bestByCode[code].order){
+       bestByCode[code]={qty:Number(r.quantity),order,invId:r.inventory_id};
       }
      });
-     Object.entries(totals).forEach(([code,qty])=>{embalagemContagens[code]=qty;});
+     // Encontrar o inventário mais recente que tem contagens de embalagem
+     let bestInvId=null,bestInvOrder=999;
+     Object.values(bestByCode).forEach(v=>{if(v.order<bestInvOrder){bestInvOrder=v.order;bestInvId=v.invId;}});
+     if(bestInvId!==null){
+      const bestInv=allInvs.find(i=>String(i.id)===String(bestInvId));
+      if(bestInv)embalagemLastInventarioDate=bestInv.created_at;
+      _dbg.inv=bestInv?.name||bestInvId;
+     }
+     Object.entries(bestByCode).forEach(([code,v])=>{embalagemContagens[code]=v.qty;_dbg.matched++;});
     }
    }
   }
@@ -4039,7 +4045,18 @@ function renderEmbalagensDashboard(el){
   .slice(0,8);
 
  const invDateStr=embalagemLastInventarioDate?new Date(embalagemLastInventarioDate).toLocaleDateString("pt-PT",{day:"2-digit",month:"long",year:"numeric"}):"desconhecida";
+ // DEBUG TEMPORÁRIO — mostra códigos para diagnóstico
+ const dbgKeys=Object.keys(embalagemContagens).slice(0,5);
+ const dbgArts=EMBALAGENS_DATA.slice(0,5).map(a=>a.artigo);
+ const dbgMatch=dbgArts.filter(a=>a in embalagemContagens).length;
+ const dbgBlock=embalagemDebug?`<div style="background:#fff3cd;border:1px solid #ffc107;padding:8px 12px;border-radius:6px;font-size:11px;font-family:monospace;margin-bottom:12px">
+  <b>DEBUG</b> prods=${embalagemDebug.prods} invs=${embalagemDebug.allInvs||0} counts=${embalagemDebug.counts} matched=${embalagemDebug.matched}<br>
+  <b>products.code (5):</b> ${dbgKeys.join(", ")||"(nenhum)"}<br>
+  <b>EMBALAGENS_DATA.artigo (5):</b> ${dbgArts.join(", ")}<br>
+  <b>Match direto:</b> ${dbgMatch}/5 | <b>Contagens obj keys:</b> ${Object.keys(embalagemContagens).length}
+ </div>`:"";
  el.innerHTML=`
+  ${dbgBlock}
   <div style="font-size:12px;color:#8C6F58;margin-bottom:12px;display:flex;align-items:center;gap:6px">
    <span>📋</span>
    <span>Contagens do inventário de <b>${invDateStr}</b>${comContagem<total?` · ${total-comContagem} sem contagem registada`:""}</span>
