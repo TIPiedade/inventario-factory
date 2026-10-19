@@ -3735,57 +3735,60 @@ async function addProduct(){
 
 // ===== EMBALAGENS TAB =====
 
+// artigo = products.code (numérico, chave real da DB usada em counts.product_code)
+// q2025 = consumo estimado Jan-Out 2025 (a preencher quando tivermos dados de compras)
 const EMBALAGENS_DATA = [
- {artigo:"BASE-VEG-14",desc:"Bases Impressas Papel Vegetal Unidose 14x14",cat:"Bases",q2024:1816000,q2025:1210667},
- {artigo:"BASE-VEG-16",desc:"Bases Impressas Papel Vegetal Unidose 16x16",cat:"Bases",q2024:45600,q2025:30400},
- {artigo:"BASE-VEG-18",desc:"Bases Impressas Papel Vegetal Unidose 18x18",cat:"Bases",q2024:23800,q2025:15867},
- {artigo:"CX-BR-S",desc:"Caixa Branca Pequena",cat:"Caixas Brancas",q2024:8400,q2025:5600},
- {artigo:"CX-BR-M",desc:"Caixa Branca Média",cat:"Caixas Brancas",q2024:12600,q2025:8400},
- {artigo:"CX-BR-L",desc:"Caixa Branca Grande",cat:"Caixas Brancas",q2024:6300,q2025:4200},
- {artigo:"CX-CAFE-400",desc:"Caixa Café 400gr Fresco e Seco",cat:"Caixas Café",q2024:9240,q2025:6160},
- {artigo:"CX-CAFE-500",desc:"Caixa Café 500gr Fresco e Seco",cat:"Caixas Café",q2024:13860,q2025:9240},
- {artigo:"CX-CANELA-400",desc:"Caixa Canela 400gr Fresco e Seco",cat:"Caixas Canela",q2024:7560,q2025:5040},
- {artigo:"CX-CANELA-500",desc:"Caixa Canela 500gr Fresco e Seco",cat:"Caixas Canela",q2024:11340,q2025:7560},
- {artigo:"CX-CHOC-400",desc:"Caixa Chocolate 400gr Fresco e Seco",cat:"Caixas Chocolate",q2024:16074,q2025:10716},
- {artigo:"CX-CHOC-500",desc:"Caixa Chocolate 500gr Fresco e Seco",cat:"Caixas Chocolate",q2024:24111,q2025:16074},
- {artigo:"CX-CONT-400",desc:"Caixa Contentora 400gr",cat:"Caixas Contentoras",q2024:5040,q2025:3360},
- {artigo:"CX-CONT-500",desc:"Caixa Contentora 500gr",cat:"Caixas Contentoras",q2024:7560,q2025:5040},
- {artigo:"CX-ORIG-500FS",desc:"Caixa Original 500gr Fresco e Seco",cat:"Caixas Original",q2024:294206,q2025:196137},
- {artigo:"CX-ORIG-500F",desc:"Caixa Original 500gr Fresco",cat:"Caixas Original",q2024:63000,q2025:42000},
- {artigo:"CX-ORIG-1KG",desc:"Caixa Original 1Kg",cat:"Caixas Original",q2024:31500,q2025:21000},
- {artigo:"CX-ORIG-2KG",desc:"Caixa Original 2Kg",cat:"Caixas Original",q2024:12600,q2025:8400},
- {artigo:"CX-ORIG-MINI",desc:"Caixa Original Mini",cat:"Caixas Original",q2024:25200,q2025:16800},
- {artigo:"CX-ORIG-GIFT",desc:"Caixa Original Gift Set",cat:"Caixas Original",q2024:8400,q2025:5600},
- {artigo:"CX-EL-NAT",desc:"Edição Limitada Natal",cat:"Edições Limitadas",q2024:12600,q2025:0},
- {artigo:"CX-EL-PAP",desc:"Edição Limitada Páscoa",cat:"Edições Limitadas",q2024:8400,q2025:5600},
- {artigo:"ETQ-ORIG",desc:"Etiqueta Original",cat:"Etiquetas",q2024:294206,q2025:196137},
- {artigo:"ETQ-CAFE",desc:"Etiqueta Café",cat:"Etiquetas",q2024:23100,q2025:15400},
- {artigo:"ETQ-CANELA",desc:"Etiqueta Canela",cat:"Etiquetas",q2024:18900,q2025:12600},
- {artigo:"ETQ-CHOC",desc:"Etiqueta Chocolate",cat:"Etiquetas",q2024:40185,q2025:26790},
- {artigo:"ETQ-CONT",desc:"Etiqueta Contentora",cat:"Etiquetas",q2024:12600,q2025:8400},
- {artigo:"ETQ-EXP",desc:"Etiqueta Expedição/Lote",cat:"Etiquetas",q2024:63000,q2025:42000},
- {artigo:"FILME-FLOW",desc:"Filme Flow-Pack",cat:"Filmes",q2024:252,q2025:168},
- {artigo:"FILME-STRETCH",desc:"Filme Stretch",cat:"Filmes",q2024:840,q2025:560},
- {artigo:"FITA-CAFE",desc:"Fita Decorativa Café",cat:"Fitas",q2024:3150,q2025:2100},
- {artigo:"FITA-ORIG",desc:"Fita Decorativa Original",cat:"Fitas",q2024:4725,q2025:3150},
- {artigo:"PAPEL-VEGETAL",desc:"Papel Vegetal Rolo",cat:"Papéis",q2024:504,q2025:336},
- {artigo:"PAPEL-MANTEIGA",desc:"Papel Manteiga Folha",cat:"Papéis",q2024:25200,q2025:16800},
- {artigo:"PAPEL-CRAFT",desc:"Papel Kraft Embrulho",cat:"Papéis",q2024:8400,q2025:5600},
- {artigo:"PALETE-STD",desc:"Palete Standard",cat:"Paletes",q2024:252,q2025:168},
- {artigo:"PALETE-MEIA",desc:"Meia Palete",cat:"Paletes",q2024:504,q2025:336},
- {artigo:"SACO-PAPEL-P",desc:"Saco Papel Pequeno",cat:"Sacos",q2024:25200,q2025:16800},
- {artigo:"SACO-PAPEL-M",desc:"Saco Papel Médio",cat:"Sacos",q2024:37800,q2025:25200},
- {artigo:"SACO-PAPEL-G",desc:"Saco Papel Grande",cat:"Sacos",q2024:12600,q2025:8400},
- {artigo:"SACO-PLASTICO",desc:"Saco Plástico Transparente",cat:"Sacos",q2024:25200,q2025:16800},
- {artigo:"CINTA-PAPEL",desc:"Cinta Papel Decorativa",cat:"Caixas Original",q2024:63000,q2025:42000},
- {artigo:"DIVISOR-CX",desc:"Divisor Interior Caixa",cat:"Caixas Original",q2024:31500,q2025:21000},
- {artigo:"TAMPA-CX",desc:"Tampa Caixa Transparente",cat:"Caixas Brancas",q2024:8400,q2025:5600},
- {artigo:"BASE-CART",desc:"Base Cartão Simples",cat:"Bases",q2024:63000,q2025:42000},
- {artigo:"FITILHO",desc:"Fitilho Decorativo Dourado",cat:"Fitas",q2024:6300,q2025:4200},
- {artigo:"ETQ-NUTRIC",desc:"Etiqueta Nutricional",cat:"Etiquetas",q2024:294206,q2025:196137},
- {artigo:"ETQ-ALERG",desc:"Etiqueta Alergénios",cat:"Etiquetas",q2024:25200,q2025:16800},
- {artigo:"BOLSA-NASC",desc:"Bolsa Nascimento Personalizada",cat:"Edições Limitadas",q2024:3150,q2025:2100},
- {artigo:"CX-DEGUST",desc:"Caixa Degustação Mini-Set",cat:"Caixas Original",q2024:6300,q2025:4200}
+ {artigo:"2017",desc:"Papel Bancadas",cat:"Papéis",q2025:0},
+ {artigo:"2070",desc:"Caixa Branca 900gr",cat:"Caixas Brancas",q2025:0},
+ {artigo:"3010",desc:"Fita Auto Adesiva 50x66",cat:"Outros",q2025:0},
+ {artigo:"3012",desc:"Filme Extensível Manual",cat:"Filmes",q2025:0},
+ {artigo:"3014",desc:"Etiqueta Caixa",cat:"Etiquetas",q2025:0},
+ {artigo:"3015",desc:"Agrafos 2ª Embalagem",cat:"Outros",q2025:0},
+ {artigo:"3018",desc:"Filme Estirável Auto 17MW",cat:"Filmes",q2025:0},
+ {artigo:"3024",desc:"Caixa Original 4×85 Fresco e Seco",cat:"Caixas Original",q2025:0},
+ {artigo:"3026",desc:"Etiquetas Douradas (Selo Fecho)",cat:"Etiquetas",q2025:0},
+ {artigo:"3028",desc:"Etiqueta Palete",cat:"Etiquetas",q2025:0},
+ {artigo:"3033",desc:"Bases Papel Vegetal 900gr 33×33",cat:"Bases",q2025:0},
+ {artigo:"3035",desc:"Filme PP Retráctil Dobrado",cat:"Filmes",q2025:0},
+ {artigo:"3044",desc:"Bases Papel Vegetal 500gr 27×27",cat:"Bases",q2025:0},
+ {artigo:"3045",desc:"Caixa Original 2×85 Fresco e Seco",cat:"Caixas Original",q2025:0},
+ {artigo:"3046",desc:"Caixa Original 8×85 Fresco e Seco",cat:"Caixas Original",q2025:0},
+ {artigo:"3047",desc:"Caixa Original 500gr Fresco e Seco",cat:"Caixas Original",q2025:0},
+ {artigo:"3048",desc:"Caixa Original 900gr Fresco e Seco",cat:"Caixas Original",q2025:0},
+ {artigo:"3049",desc:"Caixa Chocolate 2×85 Fresco e Seco",cat:"Caixas Chocolate",q2025:0},
+ {artigo:"3050",desc:"Caixa Chocolate 8×85 Fresco e Seco",cat:"Caixas Chocolate",q2025:0},
+ {artigo:"3051",desc:"Caixa Chocolate 400gr Fresco e Seco",cat:"Caixas Chocolate",q2025:0},
+ {artigo:"3052",desc:"Caixa Canela 2×85 Fresco e Seco",cat:"Caixas Canela",q2025:0},
+ {artigo:"3053",desc:"Caixa Canela 8×85 Fresco e Seco",cat:"Caixas Canela",q2025:0},
+ {artigo:"3054",desc:"Caixa Canela 500gr Fresco e Seco",cat:"Caixas Canela",q2025:0},
+ {artigo:"3056",desc:"Caixa Original 2×85 Congelado",cat:"Caixas Original",q2025:0},
+ {artigo:"3057",desc:"Caixa Original 8×85 Congelado",cat:"Caixas Original",q2025:0},
+ {artigo:"3058",desc:"Caixa Original 500gr Congelado",cat:"Caixas Original",q2025:0},
+ {artigo:"3059",desc:"Caixa Original 900gr Congelado",cat:"Caixas Original",q2025:0},
+ {artigo:"3060",desc:"Caixa Chocolate 2×85 Congelado",cat:"Caixas Chocolate",q2025:0},
+ {artigo:"3061",desc:"Caixa Chocolate 8×85 Congelado",cat:"Caixas Chocolate",q2025:0},
+ {artigo:"3062",desc:"Caixa Chocolate 400gr Congelado",cat:"Caixas Chocolate",q2025:0},
+ {artigo:"3063",desc:"Caixa Canela 2×85 Congelado",cat:"Caixas Canela",q2025:0},
+ {artigo:"3064",desc:"Caixa Canela 8×85 Congelado",cat:"Caixas Canela",q2025:0},
+ {artigo:"3065",desc:"Caixa Canela 500gr Congelado",cat:"Caixas Canela",q2025:0},
+ {artigo:"3067",desc:"Caixa Original 1400gr",cat:"Caixas Original",q2025:0},
+ {artigo:"3068",desc:"Caixa Branca Uni",cat:"Caixas Brancas",q2025:0},
+ {artigo:"3069",desc:"Caixa Branca 500gr",cat:"Caixas Brancas",q2025:0},
+ {artigo:"3070",desc:"Caixa Contentora 900gr",cat:"Caixas Contentoras",q2025:0},
+ {artigo:"3071",desc:"Caixa Contentora 500gr",cat:"Caixas Contentoras",q2025:0},
+ {artigo:"3072",desc:"Caixa Contentora 85gr",cat:"Caixas Contentoras",q2025:0},
+ {artigo:"3073",desc:"Bases Papel Vegetal Unidose 14×14",cat:"Bases",q2025:0},
+ {artigo:"3074",desc:"Bases Papel Vegetal Mini 13×13",cat:"Bases",q2025:0},
+ {artigo:"3080",desc:"Caixa Original 500gr Natal",cat:"Edições Limitadas",q2025:0},
+ {artigo:"3083",desc:"Etiqueta Validade",cat:"Etiquetas",q2025:0},
+ {artigo:"3092",desc:"Caixa Café 2×85 Fresco e Seco",cat:"Caixas Café",q2025:0},
+ {artigo:"3093",desc:"Caixa Café 8×85 Fresco e Seco",cat:"Caixas Café",q2025:0},
+ {artigo:"3094",desc:"Caixa Café 500gr Fresco e Seco",cat:"Caixas Café",q2025:0},
+ {artigo:"3095",desc:"Caixa Café 2×85 Congelado",cat:"Caixas Café",q2025:0},
+ {artigo:"3096",desc:"Caixa Café 8×85 Congelado",cat:"Caixas Café",q2025:0},
+ {artigo:"3098",desc:"Palete Euro",cat:"Paletes",q2025:0},
+ {artigo:"3099",desc:"Palete Tara Perdida",cat:"Paletes",q2025:0},
+ {artigo:"3100",desc:"Caixa Ed. Limitada 500gr Limão",cat:"Edições Limitadas",q2025:0},
 ];
 
 const EMBALAGENS_FORNECEDORES = [
@@ -3810,9 +3813,36 @@ async function loadEmbalagemData(){
  embalagemLastInventarioDate=null;
  let _dbg={inv:null,prods:0,counts:0,matched:0,invErr:null,prodErr:null,cntErr:null};
  try{
-  // DIAGNÓSTICO: listar TODOS os produtos de embalagem (code + description) para mapeamento
-  const{data:allEmbProds}=await db.from("products").select("code,description").eq("category","Embalagem").order("code");
-  _dbg.allProds=(allEmbProds||[]).map(p=>`${p.code}|${p.description}`).join(" ;; ");
+  // 1. Contagens automáticas — usar os codes numéricos do EMBALAGENS_DATA (= counts.product_code)
+  const embCodes=EMBALAGENS_DATA.map(a=>a.artigo);
+  _dbg.prods=embCodes.length;
+  const{data:allInvs,error:eInv}=await db.from("inventories").select("id,created_at,name").order("created_at",{ascending:false});
+  _dbg.invErr=eInv?.message||null;
+  _dbg.allInvs=allInvs?.length||0;
+  if(!eInv&&allInvs&&allInvs.length>0){
+   const{data:allCnts,error:eCnt}=await db.from("counts").select("product_code,quantity,inventory_id").in("product_code",embCodes).gt("quantity",0);
+   _dbg.cntErr=eCnt?.message||null;
+   _dbg.counts=allCnts?.length||0;
+   if(!eCnt&&allCnts&&allCnts.length>0){
+    const invOrder=Object.fromEntries(allInvs.map((inv,i)=>[String(inv.id),i]));
+    const bestByCode={};
+    allCnts.forEach(r=>{
+     const code=String(r.product_code);
+     const order=invOrder[String(r.inventory_id)]??999;
+     if(!(code in bestByCode)||order<bestByCode[code].order){
+      bestByCode[code]={qty:Number(r.quantity),order,invId:r.inventory_id};
+     }
+    });
+    let bestInvId=null,bestInvOrder=999;
+    Object.values(bestByCode).forEach(v=>{if(v.order<bestInvOrder){bestInvOrder=v.order;bestInvId=v.invId;}});
+    if(bestInvId!==null){
+     const bestInv=allInvs.find(i=>String(i.id)===String(bestInvId));
+     if(bestInv)embalagemLastInventarioDate=bestInv.created_at;
+     _dbg.inv=bestInv?.name||bestInvId;
+    }
+    Object.entries(bestByCode).forEach(([code,v])=>{embalagemContagens[code]=v.qty;_dbg.matched++;});
+   }
+  }
   embalagemDebug=_dbg;
   // 2. Overrides manuais da tabela packaging_stock (têm prioridade sobre inventário)
   const{data:stockRows,error:e1}=await db.from("packaging_stock").select("artigo,contagem,fonte,updated_at").order("updated_at",{ascending:false});
@@ -4008,13 +4038,7 @@ function renderEmbalagensDashboard(el){
   .slice(0,8);
 
  const invDateStr=embalagemLastInventarioDate?new Date(embalagemLastInventarioDate).toLocaleDateString("pt-PT",{day:"2-digit",month:"long",year:"numeric"}):"desconhecida";
- // DEBUG TEMPORÁRIO — mostra códigos para diagnóstico
- const dbgKeys=Object.keys(embalagemContagens).slice(0,5);
- const dbgArts=EMBALAGENS_DATA.slice(0,5).map(a=>a.artigo);
- const dbgMatch=dbgArts.filter(a=>a in embalagemContagens).length;
- const dbgBlock=embalagemDebug?`<div style="background:#fff3cd;border:1px solid #ffc107;padding:8px 12px;border-radius:6px;font-size:11px;font-family:monospace;margin-bottom:12px;word-break:break-all">
-  <b>Todos os produtos Embalagem (code|description):</b><br>${(embalagemDebug.allProds||"(nenhum)").split(" ;; ").join("<br>")}
- </div>`:"";
+ const dbgBlock="";
  el.innerHTML=`
   ${dbgBlock}
   <div style="font-size:12px;color:#8C6F58;margin-bottom:12px;display:flex;align-items:center;gap:6px">
