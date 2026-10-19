@@ -3801,21 +3801,46 @@ let embalagemContagens={};
 let embalagemOrcamentos=[];
 let embalagemViewMode="dashboard"; // dashboard | artigos | orcamentos | fornecedores
 let embalagemLoading=false;
+let embalagemLastInventarioDate=null;
 
 // ─── Supabase: carregar contagens e orçamentos ───────────────────────────────
 async function loadEmbalagemData(){
  embalagemLoading=true;
+ embalagemLastInventarioDate=null;
  try{
-  // 1. Contagens manuais da tabela packaging_stock
+  // 1. Contagens automáticas do último inventário (tabela counts + products)
+  // Buscar o inventário mais recente
+  const{data:invRows,error:eInv}=await db.from("inventories").select("id,created_at,name").order("created_at",{ascending:false}).limit(1);
+  if(!eInv&&invRows&&invRows.length>0){
+   const latestInv=invRows[0];
+   embalagemLastInventarioDate=latestInv.created_at;
+   // Buscar produtos da categoria Embalagem
+   const{data:prods,error:eProd}=await db.from("products").select("code,category").eq("category","Embalagem");
+   if(!eProd&&prods&&prods.length>0){
+    const embCodes=new Set(prods.map(p=>String(p.code)));
+    // Buscar counts do último inventário, somar por produto (vários armazéns)
+    const{data:cntRows,error:eCnt}=await db.from("counts").select("product_code,quantity").eq("inventory_id",latestInv.id);
+    if(!eCnt&&cntRows){
+     const totals={};
+     cntRows.forEach(r=>{
+      const code=String(r.product_code);
+      if(embCodes.has(code)){
+       totals[code]=(totals[code]||0)+Number(r.quantity||0);
+      }
+     });
+     Object.entries(totals).forEach(([code,qty])=>{embalagemContagens[code]=qty;});
+    }
+   }
+  }
+  // 2. Overrides manuais da tabela packaging_stock (têm prioridade sobre inventário)
   const{data:stockRows,error:e1}=await db.from("packaging_stock").select("artigo,contagem,fonte,updated_at").order("updated_at",{ascending:false});
   if(!e1&&stockRows){
    stockRows.forEach(r=>{
-    if(!(r.artigo in embalagemContagens)||r.fonte==="manual"){
-     embalagemContagens[r.artigo]=r.contagem;
-    }
+    // Override manual sempre tem prioridade
+    embalagemContagens[r.artigo]=r.contagem;
    });
   }
-  // 2. Orçamentos da tabela packaging_orders
+  // 3. Orçamentos da tabela packaging_orders
   const{data:ordRows,error:e2}=await db.from("packaging_orders").select("*").order("created_at",{ascending:false});
   if(!e2&&ordRows){
    embalagemOrcamentos=ordRows.map(r=>({
@@ -3937,6 +3962,9 @@ function riscoBadge(r){
 
 async function showEmbalagens(){
  embalagemViewMode="dashboard";
+ embalagemContagens={};
+ embalagemOrcamentos=[];
+ embalagemLastInventarioDate=null;
  app.innerHTML=nav()+'<div id="embalagensRoot"><div style="padding:40px;text-align:center;color:var(--brown-light)"><div style="font-size:32px;margin-bottom:12px">📦</div><p>A carregar dados de embalagens...</p></div></div>';
  bindNav();
  await loadEmbalagemData();
@@ -3997,7 +4025,12 @@ function renderEmbalagensDashboard(el){
   .sort((a,b)=>proj2026(b.q2025)-proj2026(a.q2025))
   .slice(0,8);
 
+ const invDateStr=embalagemLastInventarioDate?new Date(embalagemLastInventarioDate).toLocaleDateString("pt-PT",{day:"2-digit",month:"long",year:"numeric"}):"desconhecida";
  el.innerHTML=`
+  <div style="font-size:12px;color:#8C6F58;margin-bottom:12px;display:flex;align-items:center;gap:6px">
+   <span>📋</span>
+   <span>Contagens retiradas do inventário de <b>${invDateStr}</b>${comContagem<total?` · ${total-comContagem} artigo(s) sem contagem registada`:""}</span>
+  </div>
   <div class="cards" style="grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:20px">
    <div class="panel" style="text-align:center;padding:16px">
     <div style="font-size:28px;font-weight:700;color:var(--brown)">${total}</div>
@@ -4142,7 +4175,7 @@ function renderEmbalagemArtigos(el){
   <div style="margin-top:12px;padding:12px;background:var(--cream);border-radius:8px;font-size:12px;color:#666">
    <b>Projeção 2026:</b> calculada a partir dos consumos 2025 YTD (jan–out, 10 meses) × 12 / 10.
    <b>Lead time assumido:</b> 30–45 dias. Alertas: &lt;30 dias = Crítico · 30–60 = Alerta · 60–90 = Atenção.
-   Insere a contagem atual para ativar os alertas de risco.
+   ${embalagemLastInventarioDate?`As contagens são retiradas automaticamente do inventário de <b>${new Date(embalagemLastInventarioDate).toLocaleDateString("pt-PT",{day:"2-digit",month:"long",year:"numeric"})}</b>. Podes ajustar manualmente se necessário.`:"Sem inventário registado — insere as contagens manualmente para ativar os alertas."}
   </div>
  `;
 }
