@@ -29,7 +29,7 @@ jobs:
           BREVO_KEY       = os.environ["BREVO_API_KEY"]
           DESTINATARIO    = "qualidade@tipiedade.com"
           NOME_DEST       = "Milene"
-          REMETENTE_EMAIL = "Geral@domjose.pt"
+          REMETENTE_EMAIL = "sales@tipiedade.com"
           REMETENTE_NOME  = "Ti'Piedade Qualidade"
 
           # ── Consumo 2025 (base de cálculo) ──────────────────────────
