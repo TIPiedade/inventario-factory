@@ -159,13 +159,14 @@ jobs:
               "https://api.brevo.com/v3/smtp/email",
               headers={"api-key": BREVO_KEY, "Content-Type": "application/json"},
               json={
-                  "sender":      {"name": REMETENTE_NOME, "email": REMETENTE_EMAIL, "id": 1},
+                  "sender":      {"name": REMETENTE_NOME, "email": REMETENTE_EMAIL},
                   "to":          [{"email": DESTINATARIO, "name": NOME_DEST}],
                   "subject":     f"📦 Alertas de Embalagens — {hoje} | Ti'Piedade",
                   "htmlContent": html,
               },
               timeout=30,
           )
+          print("Resposta Brevo:", r.status_code, r.text)
           r.raise_for_status()
           msg_id = r.json().get("messageId", "N/A")
           print(f"   ✅ Email enviado! messageId: {msg_id}")
